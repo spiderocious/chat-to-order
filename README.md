@@ -113,7 +113,7 @@ On the panel the same order is [TPK-0231](docs/screenshots/10-order-detail-live.
 ## 3. How it is built
 
 ```
-WhatsApp simulator ──► Chord teammate (skill: food-vendor, rev 7)
+WhatsApp simulator ──► Chord teammate (skill: food-vendor, rev 9)
                              │  MCP over Streamable HTTP, bearer auth
                              ▼
                      Go + Gin service on Railway ──► Paystack (test mode)
@@ -128,7 +128,7 @@ WhatsApp simulator ──► Chord teammate (skill: food-vendor, rev 7)
 | Database | Postgres on Railway | Schema, the vendor and the menu seeded by migrations (0005 switched the vendor to TPlus without touching existing orders); `version` columns for optimistic concurrency |
 | Redis | Railway | Every use fails open; correctness lives in Postgres |
 | Admin panel | React 19, TypeScript, Vite, TanStack Router + Query, Tailwind v4, motion | Light mode, mobile-first, live updates over SSE, polling when degraded. Screens: [board](docs/screenshots/01-board-desktop-live.jpg), [order](docs/screenshots/10-order-detail-live.jpg), [menu](docs/screenshots/04-menu-desktop-live.jpg), [settings](docs/screenshots/12-settings-live.jpg), [activity](docs/screenshots/11-activity-live.jpg), [phone](docs/screenshots/03-phone-board-detail-menu.jpg) |
-| Skill | `SKILL.md` + two references | Revision 7, after seven rounds of real-conversation fixes |
+| Skill | `SKILL.md` + two references | Revision 9, after nine rounds of real-conversation fixes |
 | Hosting | Railway (backend, from `/backend`), Netlify (panel, from `/frontend`) | Two deployables, same repo, nothing at the root |
 
 No Paystack webhook: the account is shared with other projects, so payment truth comes from calling verify, and the reconciler covers the silent-payer case. The admin login is bootstrapped at boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (keyed on email, rotated when the env value changes, sessions revoked on rotation); there is no endpoint that can mint or reset an admin.
@@ -149,7 +149,7 @@ Tested at every layer before the next was built on it, then again on the hosts, 
 | Chord registration | Tools discovered (4), health probe `ok` | ok |
 | Real conversations | 7 turns by API and 12 turns in the simulator across the day, three real Paystack test payments, all confirmed | confirmed |
 | Admin panel | Signed in on the live site; every screen at desktop and 390 px; CORS verified | ok |
-| Credits | 27 teammate requests in total, including the recording | 2.93 of 50 used |
+| Credits | 42 teammate requests in total, including two recordings | 4.18 of 50 used |
 
 Tool latency on the live service for TPK-0231: `get_menu` 4 to 13 ms, `create_order` 1,329 ms (one Paystack initialize) then 5 ms for the idempotent repeat, `verify_payment` 336 ms, `confirm_order` 11 ms.
 
@@ -253,7 +253,7 @@ Ten problems hit while building and deploying, in the order they happened. Each:
 
 **How I found the cause.** The skill's hard rule from 5.7 ("never tell the customer an earlier message was wrong … unless a tool proves it") was being read as an instruction to issue a retraction, and the same customer name had been used in an earlier test conversation where a retraction had actually happened.
 
-**Fix.** Skill revision 7: every conversation starts fresh; never mention, correct or apologise for anything the customer cannot see in this chat. The confirmation and stock-guard turns that followed were clean.
+**Fix.** Skill revision 7 added "every conversation starts fresh; never mention, correct, retract or apologise for anything the customer cannot see in this chat". It did not hold: in the final recording, with a new customer name, the confirmation reply still opened with *"I'm sorry for the mix-up in my last message. The order was there all along."* The rule itself was the trigger: a list of things never to say (wrong, correction, retract, apologise) primes the model to say them. Revision 9 rewrote the rules in positive terms ("your earlier messages in this chat stand", "each reply is about now", "a confirmation reply is the order number, the items, the address, the ready-by time and the rider line") and removed the trigger words. The clean turns around it (menu, order, link, stock guard) were unaffected throughout.
 
 **What I'd change in Chord.** Make it explicit in the teammate docs whether any memory crosses conversations for the same contact, and let a builder turn it off per teammate. Also: once a teammate is in skills mode its `persona` is frozen, and `PUT /v1/teammates/{id}/playbook` says so cleanly (`409 SKILLS_ENABLED: "This teammate uses skill files. Save a skill draft and publish it"`), but `PUT /v1/teammates/{id}` with any non-empty `persona` returns `500 INTERNAL` instead of that 409 (empty or null is a 200 no-op; `display_name`, `first_name`, `role` and `avatar` all apply). The stale persona is inert, since the system prompt comes from the published skill, but the generic update endpoint is missing the guard the playbook endpoint has.
 
@@ -363,7 +363,7 @@ docs/                             plan.html, tech-spec-backend.html, tech-spec-w
 
 Claude Code (Anthropic's agentic coding tool) was the second pair of hands on this build. This section says what it did, what I did, and where it was wrong, because a reviewer should be able to tell which parts are judgement and which are generation.
 
-**Planning.** I wrote the brief and a handoff note (the business, the tool contract I wanted, the stack, the constraints: no Paystack webhook because the account is shared, nothing at the repo root, Redis fail-open, integer kobo). Claude Code turned those into the build plan and the two technical designs in `docs/`. I rejected the first plan and had it rewritten against the handoff, and asked for the specs to be "principal-engineer level" with the exact request and response bodies, the state machine and the failure table; what is published is the third version.
+**Planning.** I wrote the brief and a handoff note (the business, the tool contract I wanted, the stack, the constraints: no Paystack webhook because the account is shared, nothing at the repo root, Redis fail-open, integer kobo). I set the technical and product direction, proposed the skill structure, and reviewed every commit. Claude Code wrote the build plan, the technical designs, the skill and the smoke script.
 
 **Code.** Claude Code scaffolded the Go service and the React panel from the tool contracts, including the migrations, the MCP server, the tests and the 52-check smoke script. I read every commit, set the product rules (an order is confirmed only on Paystack's word; the model never sets a price, a status or a count; "pending" is never "failed") and the engineering rules (lenient tool schemas with alias normalisation, every money field twice, row locks on confirm, the reconciler). Where I disagreed I said so and it changed: the admin bootstrap was keyed on a hardcoded id until I asked why, and it was rewritten to key on the email with password rotation that revokes sessions.
 
