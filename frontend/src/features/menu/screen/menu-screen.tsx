@@ -37,14 +37,14 @@ export default function MenuScreen({ edit }: { edit?: string }) {
         {q.isPending ? <RowSkeletons n={8} /> : q.isError ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length === 0 ? (
           <EmptyState title="No items yet" body="Add your first dish." action={<Button size="sm" onClick={() => setCreating(true)}>Add item</Button>} />
         ) : q.data.items.map((it) => (
-          <div key={it.id} className={cn('hairline grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 text-[13px] sm:grid-cols-[1fr_80px_90px_120px_96px_60px_32px]', !it.available && 'opacity-70')}>
+          <div key={it.id} className={cn('hairline grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 text-[13px] sm:grid-cols-[1fr_72px_84px_180px_88px_56px_32px]', !it.available && 'opacity-70')}>
             <button className="min-w-0 text-left" onClick={() => void navigate({ to: ROUTES.MENU, search: { edit: it.id } })}>
               <span className="block truncate font-extrabold">{it.name}</span>
               <span className="block truncate text-[11.5px] text-ink-3">{it.description || it.id}</span>
             </button>
             <span className="hidden sm:inline text-ink-2">{it.window}</span>
             <span className="tnum text-right font-bold">{it.price_display}</span>
-            <div className="flex items-center justify-center gap-2 col-span-2 sm:col-auto">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 col-span-2 sm:col-auto">
               <Stepper label={`${it.name} portions`} value={it.portions} onChange={(v) => patch(it, { portions: v })} />
               {it.portions === 0 ? <Chip tone="critical">Sold out</Chip> : it.low ? <Chip tone="caution">Low</Chip> : null}
             </div>

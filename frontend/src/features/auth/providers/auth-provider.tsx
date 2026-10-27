@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { api, auth as tokenStore } from '@shared/api/client'
+import { api, auth as tokenStore, TOKEN_KEY } from '@shared/api/client'
 import { EP } from '@shared/api/endpoints'
 import { Data, LoginRes, MeRes, type Admin } from '@shared/api/types'
 import { storage } from '@shared/utils/storage'
 
-const KEY = 'ctpo.token'
+const KEY = TOKEN_KEY
 
 interface AuthValue {
   status: 'loading' | 'anon' | 'authed'
@@ -25,7 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => {
     tokenStore.set(null)
-    storage.remove(KEY)
     setAdmin(null)
     setExpiresAt(null)
     setStatus('anon')
@@ -39,7 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('anon')
       return
     }
-    tokenStore.set(saved)
     api(EP.AUTH.ME, { schema: Data(MeRes) })
       .then((res) => {
         const r = res as { data: { admin: Admin; expires_at?: string | null } }
@@ -53,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const res = (await api(EP.AUTH.LOGIN, { method: 'POST', body: { email, password }, schema: Data(LoginRes) })) as { data: { token: string; expires_at: string; admin: Admin } }
     tokenStore.set(res.data.token)
-    storage.set(KEY, res.data.token)
     setAdmin(res.data.admin)
     setExpiresAt(res.data.expires_at)
     setStatus('authed')

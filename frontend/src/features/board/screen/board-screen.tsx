@@ -25,7 +25,7 @@ export default function BoardScreen() {
   const sorted = [...rows].sort((a, b) => (a.status === 'paid_needs_attention' ? -1 : 0) - (b.status === 'paid_needs_attention' ? -1 : 0))
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <motion.section custom={0} variants={stagger} initial="hidden" animate="show">
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {stats.isPending ? <><StatTileSkeleton /><StatTileSkeleton /><StatTileSkeleton /><StatTileSkeleton /></> : stats.isError ? (
@@ -59,8 +59,8 @@ export default function BoardScreen() {
         </Board>
       </motion.section>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-        <motion.section custom={2} variants={stagger} initial="hidden" animate="show">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[1fr_380px]">
+        <motion.section className="min-w-0" custom={2} variants={stagger} initial="hidden" animate="show">
           <SectionTitle aside={<Link to={ROUTES.MENU} className="text-[12.5px] font-extrabold text-leaf-700 hover:underline">Edit menu</Link>}>Stock</SectionTitle>
           <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
             {stats.data?.stock.map((s) => (
@@ -73,7 +73,7 @@ export default function BoardScreen() {
           </div>
         </motion.section>
 
-        <motion.section custom={3} variants={stagger} initial="hidden" animate="show">
+        <motion.section className="min-w-0" custom={3} variants={stagger} initial="hidden" animate="show">
           <SectionTitle aside={<Link to={ROUTES.ACTIVITY} className="text-[12.5px] font-extrabold text-leaf-700 hover:underline">See all</Link>}>Assistant activity</SectionTitle>
           <Board>
             {activity.isPending ? <RowSkeletons n={4} /> : activity.isError ? <ErrorState error={activity.error} compact /> : (activity.data.pages[0]?.data.length ?? 0) === 0 ? (

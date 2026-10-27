@@ -1,16 +1,25 @@
 import type { z } from 'zod'
 import { ApiError } from './errors'
+import { storage } from '@shared/utils/storage'
+
+export const TOKEN_KEY = 'ctpo.token'
 
 const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
 if (!raw) throw new Error('VITE_API_BASE_URL is not set')
 export const BASE = raw.replace(/\/$/, '')
 
-// The auth token lives in memory; the auth provider mirrors it to storage.
-let token: string | null = null
+// The auth token lives in memory and is read from storage synchronously at
+// module load, so a route loader that runs before any React effect already
+// carries it. The auth provider keeps the two in sync afterwards.
+let token: string | null = storage.get(TOKEN_KEY)
 let onUnauthenticated: (() => void) | null = null
 export const auth = {
   get token() { return token },
-  set(t: string | null) { token = t },
+  set(t: string | null) {
+    token = t
+    if (t) storage.set(TOKEN_KEY, t)
+    else storage.remove(TOKEN_KEY)
+  },
   onUnauthenticated(fn: () => void) { onUnauthenticated = fn },
 }
 
