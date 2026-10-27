@@ -32,6 +32,7 @@
 7. [Links](#7-links)
 8. [Run it yourself](#8-run-it-yourself)
 9. [Repository layout](#9-repository-layout)
+10. [How AI was used](#10-how-ai-was-used)
 
 ---
 
@@ -356,3 +357,22 @@ docs/                             plan.html, tech-spec-backend.html, tech-spec-w
 ```
 
 ---
+
+
+## 10. How AI was used
+
+Claude Code (Anthropic's agentic coding tool) was the second pair of hands on this build. This section says what it did, what I did, and where it was wrong, because a reviewer should be able to tell which parts are judgement and which are generation.
+
+**Planning.** I wrote the brief and a handoff note (the business, the tool contract I wanted, the stack, the constraints: no Paystack webhook because the account is shared, nothing at the repo root, Redis fail-open, integer kobo). Claude Code turned those into the build plan and the two technical designs in `docs/`. I rejected the first plan and had it rewritten against the handoff, and asked for the specs to be "principal-engineer level" with the exact request and response bodies, the state machine and the failure table; what is published is the third version.
+
+**Code.** Claude Code scaffolded the Go service and the React panel from the tool contracts, including the migrations, the MCP server, the tests and the 52-check smoke script. I read every commit, set the product rules (an order is confirmed only on Paystack's word; the model never sets a price, a status or a count; "pending" is never "failed") and the engineering rules (lenient tool schemas with alias normalisation, every money field twice, row locks on confirm, the reconciler). Where I disagreed I said so and it changed: the admin bootstrap was keyed on a hardcoded id until I asked why, and it was rewritten to key on the email with password rotation that revokes sessions.
+
+**Operating the platforms.** Claude Code drove my Chrome session for the Chord console, the WhatsApp simulator and the Paystack test checkout, and used the Chord, Railway and Netlify CLIs and APIs to deploy and to publish the eight skill revisions. I supplied the accounts and keys (kept in gitignored env files it never printed), granted the browser permissions, and did the steps that need a human: the Railway GitHub grant, the recording.
+
+**Testing.** The progressive testing in §4 was run by Claude Code and read by me: unit and integration tests, the smoke locally and against Railway, the API and simulator conversations, the live panel sign-in and every screen at phone width. The ten field notes in §5 were all real failures it hit while doing that; it diagnosed them from the Chord `steps`, Railway logs and Paystack responses, proposed each fix, and I decided which to take. Two of them (5.9 zone names, 5.10 the phantom apology) came out of the final vendor switch and my own recording.
+
+**Writing.** Claude Code drafted this README, the plan and specs, the go-live note and the handover, and found the sourced statistics in §1. I chose the vendor, set the structure, cut what did not matter, and had it fold the separate documents into this one. It also reviewed my recording frame by frame and listed what to re-shoot.
+
+**What it got wrong.** It used the reserved `.example` domain for the Paystack payer email, compared the charged amount instead of the requested one, wrote tool schemas the model could not satisfy, let the example reference in the skill leak into a real call, and apologised in a fresh conversation for a correction it never made. Each of those is in the field notes with the fix. It also once ran two shell commands in parallel that stepped on each other's working directory and corrupted a `.gitignore` line, which I caught in review.
+
+**What stays mine.** The choice of business and problem, the scope line (what is deliberately left out), every product and money rule above, the decision to build my own MCP server rather than use the built-in connector, the review of each change, and everything sent to TSG. Commits are authored by me; no generated text went out unread.
