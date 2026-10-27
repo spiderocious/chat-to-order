@@ -26,7 +26,9 @@ type RejectedError struct {
 	Message string
 }
 
-func (e *RejectedError) Error() string { return fmt.Sprintf("paystack: rejected (%d): %s", e.Status, e.Message) }
+func (e *RejectedError) Error() string {
+	return fmt.Sprintf("paystack: rejected (%d): %s", e.Status, e.Message)
+}
 
 type InitializeReq struct {
 	Email       string         `json:"email"`
@@ -44,13 +46,13 @@ type InitializeRes struct {
 }
 
 type VerifyRes struct {
-	Status          string    `json:"status"` // success | abandoned | failed | pending | ongoing | reversed …
-	Reference       string    `json:"reference"`
-	AmountKobo      int64     `json:"amount"`
-	Currency        string    `json:"currency"`
-	GatewayResponse string    `json:"gateway_response"`
-	PaidAt          *time.Time `json:"paid_at"`
-	Channel         string    `json:"channel"`
+	Status          string          `json:"status"` // success | abandoned | failed | pending | ongoing | reversed …
+	Reference       string          `json:"reference"`
+	AmountKobo      int64           `json:"amount"`
+	Currency        string          `json:"currency"`
+	GatewayResponse string          `json:"gateway_response"`
+	PaidAt          *time.Time      `json:"paid_at"`
+	Channel         string          `json:"channel"`
 	Raw             json.RawMessage `json:"-"`
 }
 

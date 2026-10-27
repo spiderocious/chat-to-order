@@ -20,6 +20,7 @@ type Config struct {
 
 	PaystackSecretKey string
 	PaystackFake      bool
+	OrderEmailDomain  string // payer email domain for Paystack checkout; must be a real-looking TLD
 
 	MCPBearerToken string
 	JWTSecret      string
@@ -36,22 +37,23 @@ type Config struct {
 
 func Load() (Config, error) {
 	c := Config{
-		Port:           getenv("PORT", "8080"),
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		RedisURL:       os.Getenv("REDIS_URL"),
-		PublicBaseURL:  strings.TrimRight(getenv("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
-		CORSOrigins:    splitList(getenv("CORS_ORIGINS", "http://localhost:5173")),
+		Port:              getenv("PORT", "8080"),
+		DatabaseURL:       os.Getenv("DATABASE_URL"),
+		RedisURL:          os.Getenv("REDIS_URL"),
+		PublicBaseURL:     strings.TrimRight(getenv("PUBLIC_BASE_URL", "http://localhost:8080"), "/"),
+		CORSOrigins:       splitList(getenv("CORS_ORIGINS", "http://localhost:5173")),
 		PaystackSecretKey: os.Getenv("PAYSTACK_SECRET_KEY"),
-		PaystackFake:   boolenv("PAYSTACK_FAKE"),
-		MCPBearerToken: os.Getenv("MCP_BEARER_TOKEN"),
-		JWTSecret:      os.Getenv("JWT_SECRET"),
-		MetricsToken:   os.Getenv("METRICS_TOKEN"),
-		AdminEmail:     os.Getenv("ADMIN_EMAIL"),
-		AdminPassword:  os.Getenv("ADMIN_PASSWORD"),
-		AdminName:      getenv("ADMIN_NAME", "Iya Bisi"),
-		SeedDemoOrders: boolenv("SEED_DEMO_ORDERS"),
-		LogLevel:       getenv("LOG_LEVEL", "info"),
-		Release:        os.Getenv("GIN_MODE") == "release",
+		PaystackFake:      boolenv("PAYSTACK_FAKE"),
+		OrderEmailDomain:  getenv("ORDER_EMAIL_DOMAIN", "iyabisi-kitchen.com"),
+		MCPBearerToken:    os.Getenv("MCP_BEARER_TOKEN"),
+		JWTSecret:         os.Getenv("JWT_SECRET"),
+		MetricsToken:      os.Getenv("METRICS_TOKEN"),
+		AdminEmail:        os.Getenv("ADMIN_EMAIL"),
+		AdminPassword:     os.Getenv("ADMIN_PASSWORD"),
+		AdminName:         getenv("ADMIN_NAME", "Iya Bisi"),
+		SeedDemoOrders:    boolenv("SEED_DEMO_ORDERS"),
+		LogLevel:          getenv("LOG_LEVEL", "info"),
+		Release:           os.Getenv("GIN_MODE") == "release",
 	}
 
 	var missing []string

@@ -7,17 +7,17 @@ import (
 
 // Menu is what get_menu returns and what the board's stock strip reads.
 type Menu struct {
-	VendorName     string             `json:"vendor_name"`
-	NowWAT         string             `json:"now_wat"`
-	Window         string             `json:"window"`
-	OrdersOpen     bool               `json:"orders_open"`
-	OrdersCloseAt  string             `json:"orders_close_at,omitempty"`
-	NextWindow     *clock.NextWindow  `json:"next_window"`
-	PrepMinutes    int                `json:"prep_minutes"`
-	Items          []MenuItem         `json:"items"`
-	DeliveryZones  []MenuZone         `json:"delivery_zones"`
-	PickupAddress  string             `json:"pickup_address"`
-	NextStep       string             `json:"next_step"`
+	VendorName    string            `json:"vendor_name"`
+	NowWAT        string            `json:"now_wat"`
+	Window        string            `json:"window"`
+	OrdersOpen    bool              `json:"orders_open"`
+	OrdersCloseAt string            `json:"orders_close_at,omitempty"`
+	NextWindow    *clock.NextWindow `json:"next_window"`
+	PrepMinutes   int               `json:"prep_minutes"`
+	Items         []MenuItem        `json:"items"`
+	DeliveryZones []MenuZone        `json:"delivery_zones"`
+	PickupAddress string            `json:"pickup_address"`
+	NextStep      string            `json:"next_step"`
 }
 
 type MenuItem struct {
@@ -98,20 +98,20 @@ type VerifyOutput struct {
 }
 
 type ConfirmOutput struct {
-	OrderNo          string            `json:"order_no"`
-	Status           string            `json:"status"`
-	AlreadyConfirmed bool              `json:"already_confirmed"`
-	ConfirmedBy      string            `json:"confirmed_by"`
-	CustomerName     string            `json:"customer_name"`
-	Lines            []ConfirmLineOut  `json:"lines"`
-	TotalDisplay     string            `json:"total_display"`
-	Fulfilment       string            `json:"fulfilment"`
-	Zone             string            `json:"zone,omitempty"`
-	Address          string            `json:"address,omitempty"`
-	ReadyByWAT       string            `json:"ready_by_wat,omitempty"`
-	RiderPhone       string            `json:"rider_phone,omitempty"`
-	AttentionReason  string            `json:"attention_reason,omitempty"`
-	NextStep         string            `json:"next_step"`
+	OrderNo          string           `json:"order_no"`
+	Status           string           `json:"status"`
+	AlreadyConfirmed bool             `json:"already_confirmed"`
+	ConfirmedBy      string           `json:"confirmed_by"`
+	CustomerName     string           `json:"customer_name"`
+	Lines            []ConfirmLineOut `json:"lines"`
+	TotalDisplay     string           `json:"total_display"`
+	Fulfilment       string           `json:"fulfilment"`
+	Zone             string           `json:"zone,omitempty"`
+	Address          string           `json:"address,omitempty"`
+	ReadyByWAT       string           `json:"ready_by_wat,omitempty"`
+	RiderPhone       string           `json:"rider_phone,omitempty"`
+	AttentionReason  string           `json:"attention_reason,omitempty"`
+	NextStep         string           `json:"next_step"`
 }
 
 type ConfirmLineOut struct {

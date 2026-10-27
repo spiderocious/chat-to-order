@@ -103,6 +103,7 @@ func main() {
 	cache := redisx.NewCache(rdb)
 	bus := redisx.NewBus(ctx, rdb)
 	svc := ordering.New(db, pay, cache, locks, bus, log, cfg.PublicBaseURL)
+	svc.SetEmailDomain(cfg.OrderEmailDomain)
 	metrics := httpapi.NewMetrics(func() float64 {
 		if rdb == nil {
 			return 0

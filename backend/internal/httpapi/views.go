@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,10 +132,10 @@ type lineView struct {
 }
 
 type eventView struct {
-	Type      string          `json:"type"`
-	Actor     string          `json:"actor"`
-	Data      json.RawMessage `json:"data"`
-	At        time.Time       `json:"at"`
+	Type  string          `json:"type"`
+	Actor string          `json:"actor"`
+	Data  json.RawMessage `json:"data"`
+	At    time.Time       `json:"at"`
 }
 
 type checkView struct {
@@ -158,21 +159,21 @@ type toolCallBrief struct {
 
 type orderDetail struct {
 	orderRow
-	Phone              *string        `json:"phone"`
-	Note               *string        `json:"note"`
-	Source             string         `json:"source"`
-	AuthorizationURL   *string        `json:"authorization_url"`
-	SubtotalKobo       money.Kobo     `json:"subtotal_kobo"`
-	SubtotalDisplay    string         `json:"subtotal_display"`
-	DeliveryFeeKobo    money.Kobo     `json:"delivery_fee_kobo"`
-	DeliveryFeeDisplay string         `json:"delivery_fee_display"`
-	Lines              []lineView     `json:"lines"`
-	Events             []eventView    `json:"events"`
-	PaymentChecks      []checkView    `json:"payment_checks"`
+	Phone              *string         `json:"phone"`
+	Note               *string         `json:"note"`
+	Source             string          `json:"source"`
+	AuthorizationURL   *string         `json:"authorization_url"`
+	SubtotalKobo       money.Kobo      `json:"subtotal_kobo"`
+	SubtotalDisplay    string          `json:"subtotal_display"`
+	DeliveryFeeKobo    money.Kobo      `json:"delivery_fee_kobo"`
+	DeliveryFeeDisplay string          `json:"delivery_fee_display"`
+	Lines              []lineView      `json:"lines"`
+	Events             []eventView     `json:"events"`
+	PaymentChecks      []checkView     `json:"payment_checks"`
 	ToolCalls          []toolCallBrief `json:"tool_calls"`
-	ResolvedAt         *time.Time     `json:"resolved_at"`
-	ResolutionNote     *string        `json:"resolution_note"`
-	CancelReason       *string        `json:"cancel_reason"`
+	ResolvedAt         *time.Time      `json:"resolved_at"`
+	ResolutionNote     *string         `json:"resolution_note"`
+	CancelReason       *string         `json:"cancel_reason"`
 }
 
 func maskPhone(p *string) *string {
@@ -187,12 +188,10 @@ func maskPhone(p *string) *string {
 func linesSummary(lines []store.Line) string {
 	parts := make([]string, 0, len(lines))
 	for _, l := range lines {
-		parts = append(parts, strings.TrimSpace(strings.Repeat(" ", 0)+itoa(l.Qty)+"× "+l.NameSnapshot))
+		parts = append(parts, strconv.Itoa(l.Qty)+"× "+l.NameSnapshot)
 	}
 	return strings.Join(parts, ", ")
 }
-
-func itoa(n int) string { return strings.TrimSpace(strings.Replace(money.Kobo(n).Format(), "₦", "", 1)) }
 
 func toOrderRow(o store.Order, snap ordering.Snapshot) orderRow {
 	row := orderRow{

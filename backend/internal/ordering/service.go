@@ -44,6 +44,7 @@ type Service struct {
 	bus      redisx.Bus
 	log      *slog.Logger
 	baseURL  string
+	emailDom string
 	hooks    Hooks
 }
 
@@ -53,7 +54,15 @@ type Hooks struct {
 }
 
 func New(db *store.DB, pay paystack.Client, cache redisx.Cache, locks redisx.Locker, bus redisx.Bus, log *slog.Logger, baseURL string) *Service {
-	return &Service{db: db, pay: pay, cache: cache, locks: locks, bus: bus, log: log, baseURL: baseURL}
+	return &Service{db: db, pay: pay, cache: cache, locks: locks, bus: bus, log: log, baseURL: baseURL, emailDom: "iyabisi-kitchen.com"}
+}
+
+// SetEmailDomain sets the domain used for the per-order payer email Paystack
+// requires. Paystack rejects reserved TLDs such as .example.
+func (s *Service) SetEmailDomain(d string) {
+	if d != "" {
+		s.emailDom = d
+	}
 }
 
 func (s *Service) SetHooks(h Hooks) { s.hooks = h }
@@ -372,7 +381,7 @@ func (s *Service) CreateOrder(ctx context.Context, in CreateOrderInput) (CreateO
 	// 5. Paystack
 	ref := fmt.Sprintf("%s-%s", o.OrderNo, randHex(2))
 	init, err := s.pay.Initialize(ctx, paystack.InitializeReq{
-		Email:       fmt.Sprintf("orders+%s@iyabisi.example", strings.ToLower(o.OrderNo)),
+		Email:       fmt.Sprintf("orders+%s@%s", strings.ToLower(o.OrderNo), s.emailDom),
 		AmountKobo:  int64(total),
 		Currency:    "NGN",
 		Reference:   ref,

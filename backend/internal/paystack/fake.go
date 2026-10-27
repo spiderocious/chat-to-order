@@ -14,11 +14,11 @@ import (
 // visited with fake=1). Totals ending in 99 kobo fail; totals ending in 50
 // kobo report a different amount, to exercise amount_mismatch.
 type Fake struct {
-	mu       sync.Mutex
-	base     string
-	paid     map[string]time.Time
-	amounts  map[string]int64
-	Down     bool // simulate ErrUnavailable
+	mu      sync.Mutex
+	base    string
+	paid    map[string]time.Time
+	amounts map[string]int64
+	Down    bool // simulate ErrUnavailable
 }
 
 func NewFake(publicBase string) *Fake {

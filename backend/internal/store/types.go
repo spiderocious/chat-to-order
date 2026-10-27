@@ -48,34 +48,34 @@ type Zone struct {
 }
 
 type Order struct {
-	ID              string     `db:"id"`
-	OrderNo         string     `db:"order_no"`
-	Status          string     `db:"status"`
-	CustomerName    string     `db:"customer_name"`
-	Phone           *string    `db:"phone"`
-	Note            *string    `db:"note"`
-	Fulfilment      string     `db:"fulfilment"`
-	ZoneID          *string    `db:"zone_id"`
-	Address         *string    `db:"address"`
-	Window          string     `db:"window"`
-	SubtotalKobo    money.Kobo `db:"subtotal_kobo"`
-	DeliveryFeeKobo money.Kobo `db:"delivery_fee_kobo"`
-	TotalKobo       money.Kobo `db:"total_kobo"`
-	Reference       *string    `db:"reference"`
-	AuthorizationURL *string   `db:"authorization_url"`
-	CartHash        *string    `db:"cart_hash"`
-	Source          string     `db:"source"`
-	PaidAt          *time.Time `db:"paid_at"`
-	ReadyBy         *time.Time `db:"ready_by"`
-	ConfirmedBy     *string    `db:"confirmed_by"`
-	AttentionReason *string    `db:"attention_reason"`
-	ResolvedAt      *time.Time `db:"resolved_at"`
-	ResolutionNote  *string    `db:"resolution_note"`
-	CancelReason    *string    `db:"cancel_reason"`
-	ExpiresAt       time.Time  `db:"expires_at"`
-	ReconciledAt    *time.Time `db:"reconciled_at"`
-	CreatedAt       time.Time  `db:"created_at"`
-	UpdatedAt       time.Time  `db:"updated_at"`
+	ID               string     `db:"id"`
+	OrderNo          string     `db:"order_no"`
+	Status           string     `db:"status"`
+	CustomerName     string     `db:"customer_name"`
+	Phone            *string    `db:"phone"`
+	Note             *string    `db:"note"`
+	Fulfilment       string     `db:"fulfilment"`
+	ZoneID           *string    `db:"zone_id"`
+	Address          *string    `db:"address"`
+	Window           string     `db:"window"`
+	SubtotalKobo     money.Kobo `db:"subtotal_kobo"`
+	DeliveryFeeKobo  money.Kobo `db:"delivery_fee_kobo"`
+	TotalKobo        money.Kobo `db:"total_kobo"`
+	Reference        *string    `db:"reference"`
+	AuthorizationURL *string    `db:"authorization_url"`
+	CartHash         *string    `db:"cart_hash"`
+	Source           string     `db:"source"`
+	PaidAt           *time.Time `db:"paid_at"`
+	ReadyBy          *time.Time `db:"ready_by"`
+	ConfirmedBy      *string    `db:"confirmed_by"`
+	AttentionReason  *string    `db:"attention_reason"`
+	ResolvedAt       *time.Time `db:"resolved_at"`
+	ResolutionNote   *string    `db:"resolution_note"`
+	CancelReason     *string    `db:"cancel_reason"`
+	ExpiresAt        time.Time  `db:"expires_at"`
+	ReconciledAt     *time.Time `db:"reconciled_at"`
+	CreatedAt        time.Time  `db:"created_at"`
+	UpdatedAt        time.Time  `db:"updated_at"`
 
 	Lines []Line `db:"-"`
 }
@@ -100,18 +100,18 @@ type OrderEvent struct {
 }
 
 type PaymentCheck struct {
-	ID              int64      `db:"id"`
-	OrderID         *string    `db:"order_id"`
-	Reference       string     `db:"reference"`
-	Source          string     `db:"source"`
-	PaystackStatus  *string    `db:"paystack_status"`
-	AmountKobo      *int64     `db:"amount_kobo"`
-	Currency        *string    `db:"currency"`
-	GatewayResponse *string    `db:"gateway_response"`
-	Outcome         string     `db:"outcome"`
-	LatencyMs       *int       `db:"latency_ms"`
-	Raw             []byte     `db:"raw"`
-	CheckedAt       time.Time  `db:"checked_at"`
+	ID              int64     `db:"id"`
+	OrderID         *string   `db:"order_id"`
+	Reference       string    `db:"reference"`
+	Source          string    `db:"source"`
+	PaystackStatus  *string   `db:"paystack_status"`
+	AmountKobo      *int64    `db:"amount_kobo"`
+	Currency        *string   `db:"currency"`
+	GatewayResponse *string   `db:"gateway_response"`
+	Outcome         string    `db:"outcome"`
+	LatencyMs       *int      `db:"latency_ms"`
+	Raw             []byte    `db:"raw"`
+	CheckedAt       time.Time `db:"checked_at"`
 }
 
 type ToolCall struct {

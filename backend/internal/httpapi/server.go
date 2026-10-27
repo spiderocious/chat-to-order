@@ -59,7 +59,7 @@ func New(d Deps) *Server {
 		cfg: d.Cfg, db: d.DB, svc: d.Svc, rec: d.Rec, redis: d.Redis, bus: d.Bus, fake: d.Fake, log: d.Log,
 		version: d.Version, started: time.Now(), ready: d.Ready, metrics: d.Metrics, mcp: d.MCP,
 		limiter: redisx.NewLimiter(d.Redis), idem: redisx.NewIdempotency(d.Redis),
-		auth:    authDeps{secret: []byte(d.Cfg.JWTSecret), revoked: redisx.NewRevoked(d.Redis)},
+		auth: authDeps{secret: []byte(d.Cfg.JWTSecret), revoked: redisx.NewRevoked(d.Redis)},
 	}
 }
 

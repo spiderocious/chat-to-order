@@ -37,10 +37,10 @@ func TestVerifyStatuses(t *testing.T) {
 
 func TestOutcomeMapping(t *testing.T) {
 	cases := []struct {
-		st     string
-		amt    int64
-		cur    string
-		want   string
+		st   string
+		amt  int64
+		cur  string
+		want string
 	}{
 		{"success", 870000, "NGN", OutcomeSuccess},
 		{"success", 800000, "NGN", OutcomeAmountMismatch},
