@@ -148,7 +148,7 @@ Tested at every layer before the next was built on it, then again on the hosts, 
 | Chord registration | Tools discovered (4), health probe `ok` | ok |
 | Real conversations | 7 turns by API and 12 turns in the simulator across the day, three real Paystack test payments, all confirmed | confirmed |
 | Admin panel | Signed in on the live site; every screen at desktop and 390 px; CORS verified | ok |
-| Credits | 16 teammate requests in total | 1.74 of 50 used |
+| Credits | 27 teammate requests in total, including the recording | 2.93 of 50 used |
 
 Tool latency on the live service for TPK-0231: `get_menu` 4 to 13 ms, `create_order` 1,329 ms (one Paystack initialize) then 5 ms for the idempotent repeat, `verify_payment` 336 ms, `confirm_order` 11 ms.
 
