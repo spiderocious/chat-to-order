@@ -49,8 +49,6 @@ func bearer(token string, next http.Handler) http.Handler {
 
 // ---------- inputs ----------
 
-type EmptyInput struct{}
-
 type CreateOrderInput struct {
 	CustomerName string          `json:"customer_name" jsonschema:"The customer's name, 1 to 80 characters"`
 	Items        []CartLineInput `json:"items" jsonschema:"One line per menu item: item_id from get_menu and qty 1 to 20"`
@@ -119,13 +117,14 @@ func wrap[In any](d Deps, name string, fn func(ctx context.Context, in In) (any,
 }
 
 func register(srv *mcp.Server, d Deps) {
-	mcp.AddTool(srv, &mcp.Tool{Name: "get_menu", Description: descGetMenu},
-		wrap(d, "get_menu", func(ctx context.Context, _ EmptyInput) (any, string, error) {
+	mcp.AddTool(srv, &mcp.Tool{Name: "get_menu", Description: descGetMenu, InputSchema: emptySchema},
+		wrap(d, "get_menu", func(ctx context.Context, _ map[string]any) (any, string, error) {
 			m, err := d.Svc.Menu(ctx)
 			return m, "", err
 		}))
-	mcp.AddTool(srv, &mcp.Tool{Name: "create_order", Description: descCreateOrder},
-		wrap(d, "create_order", func(ctx context.Context, in CreateOrderInput) (any, string, error) {
+	mcp.AddTool(srv, &mcp.Tool{Name: "create_order", Description: descCreateOrder, InputSchema: createOrderSchema},
+		wrap(d, "create_order", func(ctx context.Context, raw map[string]any) (any, string, error) {
+			in := decodeCreateOrder(raw)
 			lines := make([]ordering.CartLine, 0, len(in.Items))
 			for _, l := range in.Items {
 				lines = append(lines, ordering.CartLine{ItemID: l.ItemID, Qty: l.Qty})
@@ -136,14 +135,14 @@ func register(srv *mcp.Server, d Deps) {
 			})
 			return out, out.OrderNo, err
 		}))
-	mcp.AddTool(srv, &mcp.Tool{Name: "verify_payment", Description: descVerify},
-		wrap(d, "verify_payment", func(ctx context.Context, in ReferenceInput) (any, string, error) {
-			out, err := d.Svc.VerifyPayment(ctx, in.Reference, "mcp")
+	mcp.AddTool(srv, &mcp.Tool{Name: "verify_payment", Description: descVerify, InputSchema: referenceSchema},
+		wrap(d, "verify_payment", func(ctx context.Context, raw map[string]any) (any, string, error) {
+			out, err := d.Svc.VerifyPayment(ctx, decodeReference(raw), "mcp")
 			return out, out.OrderNo, err
 		}))
-	mcp.AddTool(srv, &mcp.Tool{Name: "confirm_order", Description: descConfirm},
-		wrap(d, "confirm_order", func(ctx context.Context, in ReferenceInput) (any, string, error) {
-			out, err := d.Svc.ConfirmOrder(ctx, in.Reference, "mcp")
+	mcp.AddTool(srv, &mcp.Tool{Name: "confirm_order", Description: descConfirm, InputSchema: referenceSchema},
+		wrap(d, "confirm_order", func(ctx context.Context, raw map[string]any) (any, string, error) {
+			out, err := d.Svc.ConfirmOrder(ctx, decodeReference(raw), "mcp")
 			return out, out.OrderNo, err
 		}))
 }

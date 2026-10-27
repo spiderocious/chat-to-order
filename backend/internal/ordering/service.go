@@ -209,6 +209,12 @@ func cartHash(in CreateOrderInput, lines []CartLine) string {
 	return hex.EncodeToString(sum[:])
 }
 
+var nonSlug = regexp.MustCompile(`[^a-z0-9]+`)
+
+func slugify(s string) string {
+	return strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-")
+}
+
 func randHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
@@ -272,12 +278,27 @@ func (s *Service) CreateOrder(ctx context.Context, in CreateOrderInput) (CreateO
 	items := map[string]store.Item{}
 	for _, it := range snap.Items {
 		items[it.ID] = it
+		items[strings.ToLower(it.Name)] = it
+		items[slugify(it.Name)] = it
 	}
 	var subtotal money.Kobo
 	var outLines []OrderLineOut
 	var storeLines []store.Line
 	for _, l := range lines {
-		it, ok := items[strings.ToLower(strings.TrimSpace(l.ItemID))]
+		key := strings.ToLower(strings.TrimSpace(l.ItemID))
+		it, ok := items[key]
+		if !ok {
+			it, ok = items[slugify(key)]
+		}
+		if !ok {
+			// prefix match on the name: "jollof rice" → jollof
+			for _, cand := range snap.Items {
+				if strings.HasPrefix(strings.ToLower(cand.Name), key) || strings.HasPrefix(key, strings.ToLower(cand.Name)) {
+					it, ok = cand, true
+					break
+				}
+			}
+		}
 		if !ok {
 			return CreateOrderOutput{}, ErrItemUnknown(l.ItemID)
 		}
@@ -480,15 +501,38 @@ func (s *Service) check(ctx context.Context, o store.Order, source string) (pays
 	return v, outcome, nil
 }
 
+// orderByRef accepts a Paystack reference (IBK-0231-a1b2) or a bare order
+// number (IBK-0231); models send either, in any case.
+func (s *Service) orderByRef(ctx context.Context, ref string) (store.Order, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return store.Order{}, store.ErrNotFound
+	}
+	// Normalise case: prefix and number upper, 4-hex suffix lower.
+	if i := strings.LastIndex(ref, "-"); i > 0 && len(ref)-i-1 == 4 && strings.Count(ref, "-") >= 2 {
+		ref = strings.ToUpper(ref[:i]) + "-" + strings.ToLower(ref[i+1:])
+	} else {
+		ref = strings.ToUpper(ref)
+	}
+	o, err := s.db.OrderByReference(ctx, ref)
+	if errors.Is(err, store.ErrNotFound) {
+		o, err = s.db.OrderByNo(ctx, ref)
+		if err == nil && o.Reference == nil {
+			return o, store.ErrNotFound
+		}
+	}
+	return o, err
+}
+
 func (s *Service) VerifyPayment(ctx context.Context, reference, source string) (VerifyOutput, error) {
-	reference = strings.TrimSpace(reference)
-	o, err := s.db.OrderByReference(ctx, reference)
+	o, err := s.orderByRef(ctx, reference)
 	if errors.Is(err, store.ErrNotFound) {
 		return VerifyOutput{}, ErrUnknownReference(reference)
 	}
 	if err != nil {
 		return VerifyOutput{}, ErrStoreUnavailable("read")
 	}
+	reference = *o.Reference
 	v, outcome, err := s.check(ctx, o, source)
 	if err != nil {
 		if errors.Is(err, paystack.ErrNotFound) {
@@ -533,14 +577,14 @@ func (s *Service) VerifyPayment(ctx context.Context, reference, source string) (
 // transaction. Idempotent on reference. Called by the model, the reconciler
 // and (if ever added) a webhook.
 func (s *Service) ConfirmOrder(ctx context.Context, reference, actor string) (ConfirmOutput, error) {
-	reference = strings.TrimSpace(reference)
-	o, err := s.db.OrderByReference(ctx, reference)
+	o, err := s.orderByRef(ctx, reference)
 	if errors.Is(err, store.ErrNotFound) {
 		return ConfirmOutput{}, ErrUnknownReference(reference)
 	}
 	if err != nil {
 		return ConfirmOutput{}, ErrStoreUnavailable("read")
 	}
+	reference = *o.Reference
 	snap, err := s.Snapshot(ctx)
 	if err != nil {
 		return ConfirmOutput{}, ErrStoreUnavailable("read")

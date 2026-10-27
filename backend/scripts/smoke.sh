@@ -8,6 +8,7 @@ ADMIN_EMAIL=${ADMIN_EMAIL:?}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?}
 FAKE=${FAKE:-1}
 pass=0; failn=0
+RUN=$RANDOM   # unique customer names so reruns never hit an older open order
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1 = $2"; else failn=$((failn+1)); echo "  FAIL $1: got '$2' want '$3'"; fi; }
 mcp() { curl -s "$BASE/mcp" -H "Authorization: Bearer $MCP_TOKEN" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":$2}}"; }
@@ -44,8 +45,13 @@ check "create.zone_required" "$(echo "$E" | jq -r .error)" "zone_required"
 E=$(mcp create_order '{"customer_name":"Tobi","items":[{"item_id":"jollof","qty":1}],"fulfilment":"delivery","zone_id":"surulere"}' | tooltext)
 check "create.address_required" "$(echo "$E" | jq -r .error)" "address_required"
 
+echo "== create_order lenient argument names"
+L=$(mcp create_order '{"customer":"Lenient '$RUN'","items":[{"id":"Jollof rice","quantity":1}],"fulfillment":"Delivery","zone":"Surulere","delivery_address":"5 Ogunlana Drive"}' | tooltext)
+check "lenient.total" "$(echo "$L" | jq -r .total_display)" "₦4,200"
+check "lenient.by_order_no" "$(mcp verify_payment "{\"order_no\":\"$(echo "$L" | jq -r .order_no)\"}" | tooltext | jq -r .outcome)" "not_confirmed"
+
 echo "== create_order happy"
-CART='{"customer_name":"Tobi","items":[{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],"fulfilment":"delivery","zone_id":"surulere","address":"22 Bode Thomas, Surulere","phone":"08012345678"}'
+CART='{"customer_name":"Tobi '$RUN'","items":[{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],"fulfilment":"delivery","zone_id":"surulere","address":"22 Bode Thomas, Surulere","phone":"08012345678"}'
 O=$(mcp create_order "$CART" | tooltext)
 check "create.total" "$(echo "$O" | jq -r .total_display)" "₦8,700"
 check "create.fee" "$(echo "$O" | jq -r .delivery_fee_display)" "₦700"
@@ -99,7 +105,7 @@ check "patch.ok" "$(echo "$P" | jq -r .data.portions)" "39"
 check "patch.stale" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/v1/menu/water" -X PATCH -H "$A" -H 'Content-Type: application/json' -H "If-Match: \"$V1\"" -d '{"portions":38}')" "409"
 check "patch.validation" "$(curl -s "$BASE/api/v1/menu/water" -X PATCH -H "$A" -H 'Content-Type: application/json' -d '{"portions":-1}' | jq -r .error.code)" "validation"
 # make a fresh pending order to cancel so the check does not depend on seed state
-PEND=$(mcp create_order '{"customer_name":"Smoke Cancel","items":[{"item_id":"water","qty":1}],"fulfilment":"pickup"}' | tooltext | jq -r .order_no)
+PEND=$(mcp create_order '{"customer_name":"Smoke Cancel '$RUN'","items":[{"item_id":"water","qty":1}],"fulfilment":"pickup"}' | tooltext | jq -r .order_no)
 K=$(uuidgen)
 R1=$(curl -s "$BASE/api/v1/orders/$PEND/cancel" -X POST -H "$A" -H "Idempotency-Key: $K" -H 'Content-Type: application/json' -d '{"reason":"smoke"}')
 check "cancel.ok" "$(echo "$R1" | jq -r .data.status)" "cancelled"
