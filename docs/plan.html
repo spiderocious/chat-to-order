@@ -46,7 +46,7 @@ ol.steps{margin:8px 0;padding-left:0;list-style:none;counter-reset:s}ol.steps li
 
 <section id="s1"><div class="sec-head"><span class="num">01</span><h2>Where everything is</h2><span class="rule"></span></div>
 <div class="grid g2"><div class="card"><h3>Live</h3><table><tbody>
-<tr><td><b>Teammate</b></td><td>"Iya Bisi's Kitchen" on Chord, workspace <code>ws-cf60d772…</code>, teammate <code>13566ac2…</code>, skill revision 4 published, active</td></tr>
+<tr><td><b>Teammate</b></td><td>"TPlus Kitchen" on Chord, workspace <code>ws-cf60d772…</code>, teammate <code>13566ac2…</code>, skill revision 4 published, active</td></tr>
 <tr><td><b>MCP server</b></td><td><code>mcp-9c826c22…</code> → <code>https://backend-production-c54f.up.railway.app/mcp</code>, bearer, four tools enabled, health ok</td></tr>
 <tr><td><b>Backend</b></td><td>Railway project <code>chat-to-order</code>, service <code>backend</code>, Postgres + Redis, root directory <code>backend</code></td></tr>
 <tr><td><b>Admin panel</b></td><td><a href="https://chat-to-order-986.netlify.app">chat-to-order-986.netlify.app</a>, built from <code>frontend/</code></td></tr>
@@ -72,7 +72,7 @@ ol.steps{margin:8px 0;padding-left:0;list-style:none;counter-reset:s}ol.steps li
 <section id="s3"><div class="sec-head"><span class="num">03</span><h2>The eight field notes, one line each</h2><span class="rule"></span></div>
 <div class="card quiet"><ol class="clean">
 <li><b>Model guessed argument names</b>, strict schema rejected three calls, customer saw the retries. Lenient schemas + aliases + a skill rule.</li>
-<li><b>Paystack fee passed to the customer</b>: checkout ₦8,934.02 for a ₦8,700 order, verify's <code>amount</code> ≠ total. Compare <code>requested_amount</code>.</li>
+<li><b>Paystack fee passed to the customer</b>: checkout ₦8,934.02 for a ₦8,500 order, verify's <code>amount</code> ≠ total. Compare <code>requested_amount</code>.</li>
 <li><b>Paystack rejects <code>.example</code> emails.</b> Configurable payer domain.</li>
 <li><b>Skills API needs <code>migrate</code></b> before a new skill on a fresh teammate; two responses carry raw control characters.</li>
 <li><b>Railway</b>: GitHub app without repo access, <code>railway up</code> from a subfolder vs root directory.</li>
@@ -100,11 +100,11 @@ ol.steps{margin:8px 0;padding-left:0;list-style:none;counter-reset:s}ol.steps li
 
 <section id="s5"><div class="sec-head"><span class="num">05</span><h2>Recording script, 3 minutes</h2><span class="rule"></span></div>
 <div class="card"><table><thead><tr><th style="width:14%">Time</th><th>On screen</th></tr></thead><tbody>
-<tr><td>0:00–0:20</td><td>Admin board. One sentence on Iya Bisi and what eats her day. Point at the stock strip and "Needs you".</td></tr>
-<tr><td>0:20–1:10</td><td>Simulator: "what do you have today?" → menu. "2 jollof and 1 chapman, deliver to 22 Bode Thomas, Surulere, I'm Tobi" → lines, total, link, order number. Board: the order appears as Awaiting pay.</td></tr>
+<tr><td>0:00–0:20</td><td>Admin board. One sentence on TPlus and what eats their day. Point at the stock strip and "Needs you".</td></tr>
+<tr><td>0:20–1:10</td><td>Simulator: "what do you have today?" → menu. "2 jollof and 1 chapman, deliver to 12 Gbongan Road, Oke-Fia, I'm Tobi" → lines, total, link, order number. Board: the order appears as Awaiting pay.</td></tr>
 <tr><td>1:10–1:50</td><td>Open the link, pick Paystack's test "Success", pay. Land on the "Payment received" page.</td></tr>
 <tr><td>1:50–2:30</td><td>Back in the simulator: "paid". Confirmed with order number and ready-by. Board flips to Paid, jollof count drops by 2, Activity shows verify_payment and confirm_order with latency.</td></tr>
-<tr><td>2:30–2:50</td><td>Second chat: "3 ofada please" → "only 2 left, want 2 or a swap?" The stock guard in one line.</td></tr>
+<tr><td>2:30–2:50</td><td>Second chat: "3 biryani please" → "only 2 left, want 2 or a swap?" The stock guard in one line.</td></tr>
 <tr><td>2:50–3:00</td><td>What is left out, where the field notes are.</td></tr>
 </tbody></table></div></section>
 

@@ -19,7 +19,7 @@ func prop(typ, desc string) *jsonschema.Schema {
 
 var createOrderSchema = &jsonschema.Schema{
 	Type:        "object",
-	Description: `Example: {"customer_name":"Tobi","items":[{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],"fulfilment":"delivery","zone_id":"surulere","address":"22 Bode Thomas, Surulere"}`,
+	Description: `Example: {"customer_name":"Tobi","items":[{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],"fulfilment":"delivery","zone_id":"okefia","address":"12 Gbongan Road, Oke-Fia"}`,
 	Properties: map[string]*jsonschema.Schema{
 		"customer_name": prop("string", "Required. The customer's name, 1 to 80 characters."),
 		"items": {
@@ -34,7 +34,7 @@ var createOrderSchema = &jsonschema.Schema{
 			},
 		},
 		"fulfilment": prop("string", "Required. \"delivery\" or \"pickup\"."),
-		"zone_id":    prop("string", "Delivery zone id from get_menu (for example \"surulere\"). Required for delivery."),
+		"zone_id":    prop("string", "Delivery zone id from get_menu (for example \"okefia\"). Required for delivery."),
 		"address":    prop("string", "Street address, 5 to 200 characters. Required for delivery."),
 		"phone":      prop("string", "Customer phone number, optional."),
 		"note":       prop("string", "Special instruction, up to 140 characters, optional."),
@@ -43,7 +43,7 @@ var createOrderSchema = &jsonschema.Schema{
 
 var referenceSchema = &jsonschema.Schema{
 	Type:        "object",
-	Description: `Pass the reference exactly as create_order returned it in this conversation (shape IBK-0000-xxxx), or the order number the customer reads from their payment page (shape IBK-0000). Never a reference from memory or from an example.`,
+	Description: `Pass the reference exactly as create_order returned it in this conversation (shape TPK-0000-xxxx), or the order number the customer reads from their payment page (shape TPK-0000). Never a reference from memory or from an example.`,
 	Properties: map[string]*jsonschema.Schema{
 		"reference": prop("string", "Required. The reference from create_order in this conversation, or the customer's order number. Never guessed."),
 	},

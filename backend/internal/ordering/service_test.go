@@ -75,7 +75,7 @@ func TestCreateVerifyConfirm(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	out, err := h.svc.CreateOrder(ctx, CreateOrderInput{CustomerName: "Tobi", Items: []CartLine{{"jollof", 2}, {"chapman", 1}},
-		Fulfilment: "delivery", ZoneID: "surulere", Address: "22 Bode Thomas"})
+		Fulfilment: "delivery", ZoneID: "okefia", Address: "12 Gbongan Road"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestCreateVerifyConfirm(t *testing.T) {
 func TestIdempotentCart(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
-	in := cart("Ada", CartLine{"beans", 1})
+	in := cart("Ada", CartLine{"smallchops", 1})
 	a, err := h.svc.CreateOrder(ctx, in)
 	if err != nil {
 		t.Fatal(err)
@@ -141,12 +141,12 @@ func TestIdempotentCart(t *testing.T) {
 		t.Fatalf("reuse: %v %+v", err, b)
 	}
 	// line order should not matter
-	c, _ := h.svc.CreateOrder(ctx, cart("ada ", CartLine{"beans", 1}))
+	c, _ := h.svc.CreateOrder(ctx, cart("ada ", CartLine{"smallchops", 1}))
 	if !c.Reused {
 		t.Fatal("case/space insensitive reuse")
 	}
 	// different cart: new order
-	d, _ := h.svc.CreateOrder(ctx, cart("Ada", CartLine{"beans", 2}))
+	d, _ := h.svc.CreateOrder(ctx, cart("Ada", CartLine{"smallchops", 2}))
 	if d.Reused || d.OrderNo == a.OrderNo {
 		t.Fatal("different cart must be a new order")
 	}
@@ -163,18 +163,18 @@ func TestValidationErrors(t *testing.T) {
 			t.Fatalf("want %s got %v", code, err)
 		}
 	}
-	check(cart("", CartLine{"beans", 1}), "validation")
+	check(cart("", CartLine{"smallchops", 1}), "validation")
 	check(cart("A", CartLine{"nope", 1}), "item_unknown")
-	check(cart("A", CartLine{"ofada", 3}), "item_unavailable")
-	check(cart("A", CartLine{"egusi", 1}), "item_unavailable") // evening only
-	check(cart("A", CartLine{"beans", 0}), "validation")
-	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"beans", 1}}, Fulfilment: "delivery"}, "zone_required")
-	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"beans", 1}}, Fulfilment: "delivery", ZoneID: "mars"}, "zone_unknown")
-	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"beans", 1}}, Fulfilment: "delivery", ZoneID: "yaba"}, "address_required")
-	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"beans", 1}}, Fulfilment: "drone"}, "validation")
+	check(cart("A", CartLine{"biryani", 3}), "item_unavailable")
+	check(cart("A", CartLine{"asun", 1}), "item_unavailable") // evening only
+	check(cart("A", CartLine{"smallchops", 0}), "validation")
+	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"smallchops", 1}}, Fulfilment: "delivery"}, "zone_required")
+	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"smallchops", 1}}, Fulfilment: "delivery", ZoneID: "mars"}, "zone_unknown")
+	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"smallchops", 1}}, Fulfilment: "delivery", ZoneID: "ogooluwa"}, "address_required")
+	check(CreateOrderInput{CustomerName: "A", Items: []CartLine{{"smallchops", 1}}, Fulfilment: "drone"}, "validation")
 
 	clock.Now = func() time.Time { return time.Date(2026, 10, 27, 15, 50, 0, 0, clock.Lagos) } // lunch orders closed
-	_, err := h.svc.CreateOrder(ctx, cart("A", CartLine{"beans", 1}))
+	_, err := h.svc.CreateOrder(ctx, cart("A", CartLine{"smallchops", 1}))
 	var de *DomainError
 	if !errors.As(err, &de) || de.Code != "window_closed" || de.Fields["next_window"] == nil {
 		t.Fatalf("window: %v", err)
@@ -213,10 +213,10 @@ func TestAmountMismatchAndFailed(t *testing.T) {
 func TestParallelConfirmLastPortions(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
-	// ofada has 2 portions; six customers each order 1 and pay.
+	// biryani has 2 portions; six customers each order 1 and pay.
 	var refs []string
 	for i := 0; i < 6; i++ {
-		o, err := h.svc.CreateOrder(ctx, cart(fmt.Sprintf("C%d", i), CartLine{"ofada", 1}))
+		o, err := h.svc.CreateOrder(ctx, cart(fmt.Sprintf("C%d", i), CartLine{"biryani", 1}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -252,7 +252,7 @@ func TestParallelConfirmLastPortions(t *testing.T) {
 	if paid != 2 || attention != 4 {
 		t.Fatalf("paid=%d attention=%d results=%v", paid, attention, results)
 	}
-	it, _ := h.db.Item(ctx, "ofada")
+	it, _ := h.db.Item(ctx, "biryani")
 	if it.Portions != 0 {
 		t.Fatalf("portions %d", it.Portions)
 	}
@@ -262,7 +262,7 @@ func TestPaystackDown(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
 	h.fake.Down = true
-	_, err := h.svc.CreateOrder(ctx, cart("D", CartLine{"beans", 1}))
+	_, err := h.svc.CreateOrder(ctx, cart("D", CartLine{"smallchops", 1}))
 	var de *DomainError
 	if !errors.As(err, &de) || de.Code != "paystack_unavailable" || !de.Retryable {
 		t.Fatalf("init down: %v", err)
@@ -277,7 +277,7 @@ func TestPaystackDown(t *testing.T) {
 func TestAdminTransitions(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()
-	o, _ := h.svc.CreateOrder(ctx, cart("R", CartLine{"beans", 1}))
+	o, _ := h.svc.CreateOrder(ctx, cart("R", CartLine{"smallchops", 1}))
 	if _, err := h.svc.ResolveOrder(ctx, o.OrderNo, "x", "admin:a"); err == nil {
 		t.Fatal("resolve pending must fail")
 	}
@@ -287,7 +287,22 @@ func TestAdminTransitions(t *testing.T) {
 	if _, err := h.svc.CancelOrder(ctx, o.OrderNo, "again", "admin:a"); err == nil {
 		t.Fatal("cancel twice must fail")
 	}
-	if _, err := h.svc.ResolveOrder(ctx, "IBK-9999", "x", "admin:a"); err == nil || !strings.Contains(err.Error(), "not_found") {
+	if _, err := h.svc.ResolveOrder(ctx, "TPK-9999", "x", "admin:a"); err == nil || !strings.Contains(err.Error(), "not_found") {
 		t.Fatalf("missing: %v", err)
+	}
+}
+
+func TestCreateOrderZoneByName(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	for _, z := range []string{"Oke-Fia", "oke fia", "OKEFIA"} {
+		out, err := h.svc.CreateOrder(ctx, CreateOrderInput{CustomerName: "Z " + z, Items: []CartLine{{"jollof", 1}},
+			Fulfilment: "delivery", ZoneID: z, Address: "12 Gbongan Road"})
+		if err != nil {
+			t.Fatalf("zone %q: %v", z, err)
+		}
+		if out.DeliveryFeeKobo != 50000 {
+			t.Fatalf("zone %q: fee %d", z, out.DeliveryFeeKobo)
+		}
 	}
 }

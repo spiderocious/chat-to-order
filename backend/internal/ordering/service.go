@@ -54,7 +54,7 @@ type Hooks struct {
 }
 
 func New(db *store.DB, pay paystack.Client, cache redisx.Cache, locks redisx.Locker, bus redisx.Bus, log *slog.Logger, baseURL string) *Service {
-	return &Service{db: db, pay: pay, cache: cache, locks: locks, bus: bus, log: log, baseURL: baseURL, emailDom: "iyabisi-kitchen.com"}
+	return &Service{db: db, pay: pay, cache: cache, locks: locks, bus: bus, log: log, baseURL: baseURL, emailDom: "tplus-kitchen.ng"}
 }
 
 // SetEmailDomain sets the domain used for the per-order payer email Paystack
@@ -215,6 +215,12 @@ func slugify(s string) string {
 	return strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(s), "-"), "-")
 }
 
+// zoneKey reduces a zone id or name to letters and digits, so "Oke-Fia",
+// "oke fia" and "okefia" are the same zone.
+func zoneKey(s string) string {
+	return nonSlug.ReplaceAllString(strings.ToLower(s), "")
+}
+
 func randHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
@@ -326,11 +332,15 @@ func (s *Service) CreateOrder(ctx context.Context, in CreateOrderInput) (CreateO
 	if in.Fulfilment == "delivery" {
 		var names []string
 		var zone *store.Zone
+		// Models send the id or the display name in any spelling ("Oke-Fia",
+		// "oke fia", "okefia"); compare letters only, like item lookup does.
+		want := zoneKey(in.ZoneID)
 		for i := range snap.Zones {
 			if snap.Zones[i].Active {
 				names = append(names, snap.Zones[i].Name)
-				if snap.Zones[i].ID == in.ZoneID {
+				if zoneKey(snap.Zones[i].ID) == want || zoneKey(snap.Zones[i].Name) == want {
 					zone = &snap.Zones[i]
+					in.ZoneID = snap.Zones[i].ID
 				}
 			}
 		}
@@ -502,8 +512,8 @@ func (s *Service) check(ctx context.Context, o store.Order, source string) (pays
 	return v, outcome, nil
 }
 
-// orderByRef accepts a Paystack reference (IBK-0231-a1b2) or a bare order
-// number (IBK-0231); models send either, in any case.
+// orderByRef accepts a Paystack reference (TPK-0231-a1b2) or a bare order
+// number (TPK-0231); models send either, in any case.
 func (s *Service) orderByRef(ctx context.Context, ref string) (store.Order, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
@@ -566,8 +576,8 @@ func (s *Service) VerifyPayment(ctx context.Context, reference, source string) (
 		out.Message = "The bank declined the payment: " + humanGateway(v.GatewayResponse) + "."
 		out.NextStep = "Say the bank's reason plainly and offer a new link by calling create_order again with the same cart."
 	case paystack.OutcomeAmountMismatch:
-		out.Message = fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for Iya Bisi.", money.Kobo(v.Settled()).Format(), o.TotalKobo.Format())
-		out.NextStep = "Do not confirm. Tell the customer the amount did not match and Iya Bisi will contact them."
+		out.Message = fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for TPlus.", money.Kobo(v.Settled()).Format(), o.TotalKobo.Format())
+		out.NextStep = "Do not confirm. Tell the customer the amount did not match and TPlus will contact them."
 	}
 	return out, nil
 }
@@ -724,7 +734,7 @@ func (s *Service) confirmOutput(o store.Order, snap Snapshot, already bool) Conf
 		if o.AttentionReason != nil {
 			out.AttentionReason = *o.AttentionReason
 		}
-		out.NextStep = "Apologise: payment received but an item ran out before it was confirmed. Iya Bisi will contact them to swap or sort it out. Do not promise a refund."
+		out.NextStep = "Apologise: payment received but an item ran out before it was confirmed. TPlus will contact them to swap or sort it out. Do not promise a refund."
 	case store.StatusCancelled:
 		out.NextStep = "This order was cancelled. Offer to start a new one with create_order."
 	default:

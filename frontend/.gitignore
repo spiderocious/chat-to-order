@@ -6,3 +6,4 @@ dist
 .netlify
 *.tsbuildinfo
 src/routeTree.gen.ts
+public/docs

@@ -53,8 +53,8 @@ function Login() {
       <motion.form onSubmit={submit} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
         className={`pass w-full max-w-sm p-6 ${shake ? 'shake' : ''}`} aria-describedby={error ? 'login-error' : undefined}>
         <div className="mb-5 flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-[12px] bg-leaf font-display text-[18px] font-extrabold text-white">IB</span>
-          <div><h1 className="text-[22px] font-extrabold leading-tight">Iya Bisi's Kitchen</h1><div className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink-3">Orders</div></div>
+          <span className="grid size-11 place-items-center rounded-[12px] bg-leaf font-display text-[18px] font-extrabold text-white">TP</span>
+          <div><h1 className="text-[22px] font-extrabold leading-tight">TPlus Kitchen</h1><div className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-ink-3">Orders</div></div>
         </div>
         <div className="space-y-3">
           <Field label="Email" htmlFor="email">

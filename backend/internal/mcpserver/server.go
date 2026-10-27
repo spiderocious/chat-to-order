@@ -28,7 +28,7 @@ type Deps struct {
 
 // Handler returns the http.Handler for POST /mcp, with bearer auth applied.
 func Handler(d Deps) http.Handler {
-	srv := mcp.NewServer(&mcp.Implementation{Name: "iya-bisi-ordering", Version: d.Version}, nil)
+	srv := mcp.NewServer(&mcp.Implementation{Name: "tplus-kitchen-ordering", Version: d.Version}, nil)
 	register(srv, d)
 	h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true})
 	return bearer(d.Token, h)
@@ -65,7 +65,7 @@ type CartLineInput struct {
 }
 
 type ReferenceInput struct {
-	Reference string `json:"reference" jsonschema:"The Paystack reference returned by create_order, like IBK-0000-xxxx"`
+	Reference string `json:"reference" jsonschema:"The Paystack reference returned by create_order, like TPK-0000-xxxx"`
 }
 
 // toolError renders a DomainError as the MCP tool error payload.
@@ -147,10 +147,10 @@ func register(srv *mcp.Server, d Deps) {
 		}))
 }
 
-const descGetMenu = `Get what Iya Bisi's Kitchen is offering right now: the current window (lunch, evening or closed), whether orders are open, every item with its price_display and portions_left, delivery zones with fees, and the pickup address. Call this at the start of every order and again if a few minutes have passed. Never quote a price or a portion count from memory; always from this tool.`
+const descGetMenu = `Get what TPlus Kitchen is offering right now: the current window (lunch, evening or closed), whether orders are open, every item with its price_display and portions_left, delivery zones with fees, and the pickup address. Call this at the start of every order and again if a few minutes have passed. Never quote a price or a portion count from memory; always from this tool.`
 
 const descCreateOrder = `Create an order and get a Paystack payment link. Validates every item id and quantity against current stock and the cut-off time, computes the total with the delivery fee, and returns the lines, totals as display strings, the reference and the authorization_url. Repeat the lines and total_display to the customer exactly, send the link, and ask them to say 'paid' when done. If the same cart is sent again while the first is still open, the same order and link come back (reused=true). On item_unavailable, offer max_qty or a swap; on window_closed, say when the next window opens.`
 
 const descVerify = `Ask Paystack whether a reference has been paid. Returns outcome: success, not_confirmed, failed or amount_mismatch, with a message and next_step. Call this when the customer says they have paid. On success, call confirm_order next. not_confirmed means not yet (never say 'failed'); failed carries the bank's reason; amount_mismatch is flagged for the vendor.`
 
-const descConfirm = `Confirm a paid order: re-checks the payment with Paystack, reserves the portions and marks the order paid with a ready-by time. Idempotent: calling it again for the same reference returns the same confirmed order. Only after this returns status 'paid' may you tell the customer the order is confirmed. If status is 'paid_needs_attention', an item ran out after payment; apologise and say Iya Bisi will contact them, and do not promise a refund.`
+const descConfirm = `Confirm a paid order: re-checks the payment with Paystack, reserves the portions and marks the order paid with a ready-by time. Idempotent: calling it again for the same reference returns the same confirmed order. Only after this returns status 'paid' may you tell the customer the order is confirmed. If status is 'paid_needs_attention', an item ran out after payment; apologise and say TPlus will contact them, and do not promise a refund.`

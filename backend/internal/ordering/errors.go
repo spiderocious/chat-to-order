@@ -76,11 +76,11 @@ func ErrAddressRequired() *DomainError {
 }
 
 func ErrTotalTooLarge(limit money.Kobo) *DomainError {
-	return newErr("validation", fmt.Sprintf("Order total is above the %s limit for one order. Split it or call Iya Bisi.", limit.Format()), false, map[string]any{"field": "items"})
+	return newErr("validation", fmt.Sprintf("Order total is above the %s limit for one order. Split it or call TPlus.", limit.Format()), false, map[string]any{"field": "items"})
 }
 
 func ErrUnknownReference(ref string) *DomainError {
-	return newErr("unknown_reference", fmt.Sprintf("No order with reference %s. Use the reference or order number that create_order returned in this conversation; if you do not have it, ask the customer for the order number on their payment page (it looks like IBK-0000) and call again with that.", ref), false, map[string]any{"reference": ref})
+	return newErr("unknown_reference", fmt.Sprintf("No order with reference %s. Use the reference or order number that create_order returned in this conversation; if you do not have it, ask the customer for the order number on their payment page (it looks like TPK-0000) and call again with that.", ref), false, map[string]any{"reference": ref})
 }
 
 func ErrPaystackUnavailable(action string) *DomainError {
@@ -116,7 +116,7 @@ func ErrPaymentFailed(reason string) *DomainError {
 }
 
 func ErrAmountMismatch(got, want money.Kobo) *DomainError {
-	return newErr("amount_mismatch", fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for Iya Bisi; not confirmed.", got.Format(), want.Format()), false, map[string]any{"outcome": "amount_mismatch"})
+	return newErr("amount_mismatch", fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for TPlus; not confirmed.", got.Format(), want.Format()), false, map[string]any{"outcome": "amount_mismatch"})
 }
 
 func ErrInvalidTransition(msg string) *DomainError {

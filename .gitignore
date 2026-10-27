@@ -11,3 +11,6 @@ dist/
 
 # Local Netlify folder
 .netlify
+
+# Local-only notes (QA log, prestart, email draft)
+/docs-local

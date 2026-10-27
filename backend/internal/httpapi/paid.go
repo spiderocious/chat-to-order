@@ -36,7 +36,7 @@ p{margin:0 0 10px;color:#3d4c5c;line-height:1.5}
 // claims the payment succeeded; only confirm_order does that.
 func (s *Server) paidPage(c *gin.Context) {
 	ref := c.Query("ref")
-	data := gin.H{"Title": "Thanks", "Heading": "Thanks!", "Body": "Go back to WhatsApp and reply 'paid' so Iya Bisi's assistant can confirm your order.", "OrderNo": ""}
+	data := gin.H{"Title": "Thanks", "Heading": "Thanks!", "Body": "Go back to WhatsApp and reply 'paid' so the TPlus assistant can confirm your order.", "OrderNo": ""}
 	if refRe.MatchString(ref) {
 		if s.fake != nil && c.Query("fake") == "1" {
 			s.fake.MarkPaid(ref)
@@ -44,7 +44,7 @@ func (s *Server) paidPage(c *gin.Context) {
 		o, err := s.db.OrderByReference(c.Request.Context(), ref)
 		if err == nil {
 			data["Heading"] = "Payment received"
-			data["Body"] = "Go back to WhatsApp and reply 'paid' so Iya Bisi's assistant can confirm order " + o.OrderNo + "."
+			data["Body"] = "Go back to WhatsApp and reply 'paid' so the TPlus assistant can confirm order " + o.OrderNo + "."
 			data["OrderNo"] = o.OrderNo
 			data["Title"] = "Payment received"
 		} else if !errors.Is(err, store.ErrNotFound) {

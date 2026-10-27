@@ -87,8 +87,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* rail */}
       <aside className="hidden lg:flex w-[220px] shrink-0 flex-col border-r border-line-2 bg-paper-2 px-3 py-4">
         <Link to={ROUTES.BOARD} className="flex items-center gap-2.5 px-2">
-          <span className="grid size-8 place-items-center rounded-[9px] bg-leaf font-display text-[14px] font-extrabold text-white">IB</span>
-          <span className="leading-tight"><span className="block font-display text-[14px] font-extrabold">{vendor?.vendor_name ?? 'Iya Bisi'}</span><span className="block text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-ink-3">Orders</span></span>
+          <span className="grid size-8 place-items-center rounded-[9px] bg-leaf font-display text-[14px] font-extrabold text-white">TP</span>
+          <span className="leading-tight"><span className="block font-display text-[14px] font-extrabold">{vendor?.vendor_name ?? 'TPlus Kitchen'}</span><span className="block text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-ink-3">Orders</span></span>
         </Link>
         <nav className="mt-4 flex flex-col">
           {['Today', 'Setup', 'System'].map((g) => (
@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* topbar */}
         <header className="sticky top-0 z-[200] flex h-14 items-center gap-2 border-b border-line bg-paper/90 px-4 backdrop-blur sm:px-5">
-          <Link to={ROUTES.BOARD} className="lg:hidden grid size-8 place-items-center rounded-[9px] bg-leaf font-display text-[13px] font-extrabold text-white">IB</Link>
+          <Link to={ROUTES.BOARD} className="lg:hidden grid size-8 place-items-center rounded-[9px] bg-leaf font-display text-[13px] font-extrabold text-white">TP</Link>
           <div className="hidden sm:block"><WindowChip /></div>
           <div className="ml-auto flex items-center gap-2">
             <LiveChip compact />

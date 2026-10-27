@@ -130,7 +130,7 @@ svg .b{font-weight:800}
 
 <div class="masthead">
   <div class="eyebrow">Chat to paid order · Technical design · Admin panel (web) · v1 · 27 Oct 2026</div>
-  <h1>The vendor's panel: a board she watches and a few things she edits</h1>
+  <h1>The vendor's panel: a board the vendor watches and a few things they edit</h1>
   <p>
     React 19 + TypeScript on Vite, TanStack Router for routes, TanStack Query for data, Tailwind v4 for
     styling, deployed to Netlify from <code>/frontend</code>. It talks only to the backend's REST + SSE API
@@ -549,7 +549,7 @@ interface AuthValue { status: 'loading'|'anon'|'authed'; admin: Admin|null; toke
         <span class="t" style="font-size:24px">Board</span>
         <span class="t" style="font-size:18px">Orders today</span>
         <span style="font-size:14px">Body Nunito 14/1.55</span>
-        <span class="m" style="font-size:12px">IBK-0231-a1b2</span>
+        <span class="m" style="font-size:12px">TPK-0231-a1b2</span>
       </div>
       <pre class="code">--f-text:    'Nunito', system-ui, sans-serif;          /* body, labels, buttons */
 --f-display: 'Baloo 2', 'Nunito', sans-serif;          /* headings and every figure */
@@ -638,7 +638,7 @@ z: base 0 · sticky 100 · header 200 · drawer 300 · scrim 400 · modal 500 ·
     <h3>Board <code>/</code></h3>
     <div class="app">
       <div class="rail">
-        <div class="brand"><div class="mark">IB</div><div><div class="nm">Iya Bisi's Kitchen</div><div class="sub">Orders</div></div></div>
+        <div class="brand"><div class="mark">IB</div><div><div class="nm">TPlus Kitchen</div><div class="sub">Orders</div></div></div>
         <div class="grp">Today</div>
         <div class="it on">Board</div><div class="it">Orders</div>
         <div class="grp">Setup</div>
@@ -656,11 +656,11 @@ z: base 0 · sticky 100 · header 200 · drawer 300 · scrim 400 · modal 500 ·
         </div>
         <div class="board">
           <div class="brow h"><span>Status</span><span>Order</span><span>Customer · lines</span><span>Total</span><span>Ready</span></div>
-          <div class="brow"><span class="chip ok">Paid</span><span class="m">IBK-0231</span><span>Tobi · 2× Jollof, 1× Chapman · Surulere</span><span class="m">₦8,700</span><span class="m">13:25</span></div>
-          <div class="brow"><span class="chip wait">Awaiting</span><span class="m">IBK-0230</span><span>Ngozi · 1× Ofada · pickup</span><span class="m">₦4,000</span><span class="m">·</span></div>
-          <div class="brow"><span class="chip ok">Paid</span><span class="m">IBK-0229</span><span>Kunle · 3× Beans &amp; plantain · Yaba</span><span class="m">₦8,700</span><span class="m">13:05</span></div>
+          <div class="brow"><span class="chip ok">Paid</span><span class="m">TPK-0231</span><span>Tobi · 2× Jollof, 1× Chapman · Oke-Fia</span><span class="m">₦8,500</span><span class="m">13:25</span></div>
+          <div class="brow"><span class="chip wait">Awaiting</span><span class="m">TPK-0230</span><span>Ngozi · 1× Biryani · pickup</span><span class="m">₦4,000</span><span class="m">·</span></div>
+          <div class="brow"><span class="chip ok">Paid</span><span class="m">TPK-0229</span><span>Kunle · 3× Small chops · Ogo-Oluwa</span><span class="m">₦8,500</span><span class="m">13:05</span></div>
         </div>
-        <div style="font-size:10.5px;color:var(--ink-3);margin-top:8px">Stock · Jollof <b>16</b> · Fried rice <b>15</b> · Ofada <b style="color:#d64545">1</b> · Beans <b>9</b> · Moi moi <b>30</b> · Chapman <b>24</b></div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:8px">Stock · Jollof <b>16</b> · Fried rice <b>15</b> · Biryani <b style="color:#d64545">1</b> · Small chops <b>9</b> · Puff puff <b>30</b> · Chapman <b>24</b></div>
       </div>
     </div>
     <table>
@@ -691,7 +691,7 @@ z: base 0 · sticky 100 · header 200 · drawer 300 · scrim 400 · modal 500 ·
         <li>Payment <span class="tag t-board">board</span>: reference, every <code>payment_checks</code> row (source, status, outcome, amount, gateway response, latency).</li>
         <li>Timeline: <code>order_events</code> with actor chips.</li>
         <li>Actions: <b>Resolve</b> (only when needs attention) opens a modal with a required note. <b>Cancel</b> (only when awaiting payment) opens <code>ConfirmTyped</code> with <code>CANCEL</code>. Both disabled with a tooltip otherwise; the rule text comes from the backend's 409 message if it ever fires.</li>
-        <li>Not found: "No order IBK-9999. Check the number on the board." + back link. Invalid format never calls the API.</li>
+        <li>Not found: "No order TPK-9999. Check the number on the board." + back link. Invalid format never calls the API.</li>
       </ul>
     </div>
     <div class="card">
@@ -707,7 +707,7 @@ z: base 0 · sticky 100 · header 200 · drawer 300 · scrim 400 · modal 500 ·
       <ul class="clean">
         <li>Three cards: Kitchen (name, pickup address, rider phone, prep minutes, pending TTL, low-stock threshold), Windows (six time inputs with live validation: "orders close must be before kitchen closes"), Delivery zones (small board: name, fee in naira, active switch; add zone inline).</li>
         <li>One Save per card; <code>PUT</code> with <code>If-Match</code>; success toast "Saved"; 409 handled as in Menu.</li>
-        <li>A readOnly "Now" line shows the computed window from the server so the vendor sees the effect of her times.</li>
+        <li>A readOnly "Now" line shows the computed window from the server so the vendor sees the effect of their times.</li>
       </ul>
       <h3 style="margin-top:14px">Activity <code>/activity</code> <span class="tag t-board">board</span></h3>
       <ul class="clean">

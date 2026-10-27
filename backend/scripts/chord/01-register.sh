@@ -6,7 +6,7 @@
 set -euo pipefail
 BASE=${CHORD_BASE_URL:-https://api.chordhq.xyz}
 : "${CHORD_API_KEY:?}" "${CHORD_WORKSPACE_ID:?}" "${CHORD_TEAMMATE_ID:?}" "${MCP_URL:?}" "${MCP_BEARER_TOKEN:?}"
-NAME=${MCP_NAME:-"Iya Bisi ordering"}
+NAME=${MCP_NAME:-"TPlus Kitchen ordering"}
 H=(-H "Authorization: Bearer $CHORD_API_KEY" -H 'Content-Type: application/json')
 
 echo "== 1. register (disabled)"

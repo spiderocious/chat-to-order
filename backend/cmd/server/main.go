@@ -14,8 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/spiderocious/chat-to-order/backend/internal/activity"
 	"github.com/spiderocious/chat-to-order/backend/internal/config"
 	"github.com/spiderocious/chat-to-order/backend/internal/httpapi"
@@ -65,17 +63,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Admin bootstrap: hash set once from env, never stored in the repo.
-	var hash string
-	if cfg.AdminPassword != "" {
-		h, err := bcrypt.GenerateFromPassword([]byte(cfg.AdminPassword), 12)
-		if err != nil {
-			log.Error("boot.admin", "err", err)
-			os.Exit(1)
-		}
-		hash = string(h)
-	}
-	if err := db.BootstrapAdmin(ctx, cfg.AdminEmail, cfg.AdminName, hash); err != nil {
+	// Admin bootstrap from env; the password is hashed in the store and never
+	// stored in the repo. See store.BootstrapAdmin for the rotation rule.
+	if err := db.BootstrapAdmin(ctx, cfg.AdminEmail, cfg.AdminName, cfg.AdminPassword); err != nil {
 		log.Error("boot.admin", "err", err)
 		os.Exit(1)
 	}

@@ -324,7 +324,7 @@ make smoke      # curl the MCP endpoint through the four tools with the fake</pr
     <pre class="code">CREATE TABLE vendor_settings (
   id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   vendor_name text NOT NULL, pickup_address text NOT NULL, rider_phone text NOT NULL DEFAULT '',
-  order_prefix text NOT NULL DEFAULT 'IBK',
+  order_prefix text NOT NULL DEFAULT 'TPK',
   prep_minutes int NOT NULL DEFAULT 40 CHECK (prep_minutes BETWEEN 5 AND 240),
   lunch_open time NOT NULL, lunch_close time NOT NULL, lunch_orders_close time NOT NULL,
   evening_open time NOT NULL, evening_close time NOT NULL, evening_orders_close time NOT NULL,
@@ -441,19 +441,19 @@ CREATE TABLE admins (
       <h3><code>0002_seed_menu.sql</code></h3>
       <pre class="code">INSERT INTO vendor_settings (vendor_name, pickup_address, rider_phone, order_prefix, prep_minutes,
   lunch_open, lunch_close, lunch_orders_close, evening_open, evening_close, evening_orders_close)
-VALUES ('Iya Bisi''s Kitchen', '14 Adelabu Street, Surulere, Lagos', '0801 000 0000', 'IBK', 40,
+VALUES ('TPlus Kitchen', 'TPlus Kitchen, Oke-Fia, Osogbo, Osun', '0801 000 0000', 'TPK', 40,
   '11:00','15:00','14:30','17:00','20:30','20:00');
 
 INSERT INTO delivery_zones (id, name, fee_kobo, sort) VALUES
-  ('surulere','Surulere', 70000,1), ('yaba','Yaba',120000,2), ('ikeja','Ikeja',180000,3);
+  ('okefia','Oke-Fia', 50000,1), ('ogooluwa','Ogo-Oluwa',80000,2), ('otaefun','Ota-Efun',120000,3);
 
 INSERT INTO menu_items (id, name, price_kobo, portions, window, sort) VALUES
   ('jollof',  'Jollof rice & chicken', 350000, 20, 'lunch',   1),
   ('fried',   'Fried rice & chicken',  350000, 15, 'lunch',   2),
-  ('ofada',   'Ofada rice & ayamase',  400000,  2, 'lunch',   3),   -- low on purpose
-  ('beans',   'Beans & plantain',      250000, 12, 'all',     4),
-  ('moimoi',  'Moi moi',                80000, 30, 'all',     5),
-  ('egusi',   'Egusi & pounded yam',   450000, 10, 'evening', 6),
+  ('biryani', 'Chicken biryani',       400000,  2, 'all',     3),   -- low on purpose
+  ('beans',   'Small chops pack',      250000, 12, 'all',     4),
+  ('puffpuff','Puff puff (10 pieces)',  80000, 30, 'all',     5),
+  ('asun',    'Asun & plantain',       450000, 10, 'evening', 6),
   ('chapman', 'Chapman',               100000, 25, 'all',     7),
   ('water',   'Bottled water',          30000, 40, 'all',     8);</pre>
       <p><b>Demo reset</b> (<code>POST /api/v1/admin/reset</code>): inside one transaction truncate <code>orders</code> (cascades), <code>payment_checks</code>, <code>tool_calls</code>; <code>ALTER SEQUENCE order_no_seq RESTART 231</code>; upsert items back to seed portions; re-run 0004's body. Then <code>DEL</code> the menu cache and publish <code>reset</code> on the event bus so every open board refetches. Settings edits and admins are untouched.</p>
@@ -476,8 +476,8 @@ closed:  otherwise → next = next opening today or tomorrow</pre>
         <li>An item is <b>offered</b> when <code>available</code> ∧ <code>portions > 0</code> ∧ <code>window ∈ {current, all}</code>.</li>
         <li>An order's <code>window</code> is stamped at creation.</li>
       </ul>
-      <pre class="code">order_no  = prefix "-" zero-pad4(nextval)         IBK-0231
-reference = order_no "-" 4 random hex              IBK-0231-a1b2
+      <pre class="code">order_no  = prefix "-" zero-pad4(nextval)         TPK-0231
+reference = order_no "-" 4 random hex              TPK-0231-a1b2
 cart_hash = sha256(lower(trim(name)) | sorted "item:qty" lines | fulfilment | zone | normalised address)
 ready_by  = paid_at + prep_minutes, ceil to 5 min, label "13:25" WAT</pre>
     </div>
@@ -647,12 +647,12 @@ Content-Type: application/json
 X-Request-ID: req_01J…
 
 {"jsonrpc":"2.0","id":7,"result":{
-  "content":[{"type":"text","text":"{\"vendor_name\":\"Iya Bisi's Kitchen\",…}"}],
-  "structuredContent":{"vendor_name":"Iya Bisi's Kitchen",…},
+  "content":[{"type":"text","text":"{\"vendor_name\":\"TPlus Kitchen\",…}"}],
+  "structuredContent":{"vendor_name":"TPlus Kitchen",…},
   "isError":false}}</pre>
       <div class="lab">Response, domain error (JSON-RPC success, tool error)</div>
       <pre class="code err">{"jsonrpc":"2.0","id":8,"result":{
-  "content":[{"type":"text","text":"{\"error\":\"item_unavailable\",\"message\":\"Ofada rice & ayamase has only 1 portion left.\",\"item_id\":\"ofada\",\"max_qty\":1,\"retryable\":false}"}],
+  "content":[{"type":"text","text":"{\"error\":\"item_unavailable\",\"message\":\"Chicken biryani has only 1 portion left.\",\"item_id\":\"biryani\",\"max_qty\":1,\"retryable\":false}"}],
   "isError":true}}</pre>
       <div class="lab">Transport errors (never reach the model as text)</div>
       <pre class="code err">401 {"error":{"code":"unauthenticated","message":"Missing or invalid bearer token."}}
@@ -682,7 +682,7 @@ X-Request-ID: req_01J…
     <div class="lab">Input</div><pre class="code req">{}</pre>
     <div class="lab">Output</div>
     <pre class="code res">{
-  "vendor_name": "Iya Bisi's Kitchen",
+  "vendor_name": "TPlus Kitchen",
   "now_wat": "12:40",
   "window": "lunch",                      // lunch | evening | closed
   "orders_open": true,
@@ -691,11 +691,11 @@ X-Request-ID: req_01J…
   "prep_minutes": 40,
   "items": [
     {"id":"jollof","name":"Jollof rice & chicken","price_kobo":350000,"price_display":"₦3,500","portions_left":18},
-    {"id":"ofada","name":"Ofada rice & ayamase","price_kobo":400000,"price_display":"₦4,000","portions_left":2},
+    {"id":"biryani","name":"Chicken biryani","price_kobo":400000,"price_display":"₦4,000","portions_left":2},
     …
   ],
-  "delivery_zones": [{"id":"surulere","name":"Surulere","fee_kobo":70000,"fee_display":"₦700"}, …],
-  "pickup_address": "14 Adelabu Street, Surulere, Lagos",
+  "delivery_zones": [{"id":"okefia","name":"Oke-Fia","fee_kobo":50000,"fee_display":"₦500"}, …],
+  "pickup_address": "TPlus Kitchen, Oke-Fia, Osogbo, Osun",
   "next_step": "List items with price_display and portions_left. Ask what they want, delivery or pickup, and a name."
 }</pre>
   </div>
@@ -709,29 +709,29 @@ X-Request-ID: req_01J…
   "items": [{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],   // 1–12 lines, qty 1–20
   "fulfilment": "delivery",                         // delivery | pickup
   "zone_id": "surulere",                            // required for delivery
-  "address": "22 Bode Thomas, Surulere",            // required for delivery, 5–200 chars
+  "address": "12 Gbongan Road, Oke-Fia",            // required for delivery, 5–200 chars
   "phone": "08012345678",                           // optional, normalised to 11 digits
   "note": "no pepper"                               // optional, ≤ 140 chars
 }</pre>
     <div class="lab">Output</div>
     <pre class="code res">{
-  "order_no": "IBK-0231", "reference": "IBK-0231-a1b2",
+  "order_no": "TPK-0231", "reference": "TPK-0231-a1b2",
   "authorization_url": "https://checkout.paystack.com/x7k2…", "reused": false,
   "lines": [
     {"item_id":"jollof","name":"Jollof rice & chicken","qty":2,"unit_display":"₦3,500","line_kobo":700000,"line_display":"₦7,000"},
     {"item_id":"chapman","name":"Chapman","qty":1,"unit_display":"₦1,000","line_kobo":100000,"line_display":"₦1,000"}],
   "subtotal_kobo": 800000, "subtotal_display": "₦8,000",
   "delivery_fee_kobo": 70000, "delivery_fee_display": "₦700",
-  "total_kobo": 870000, "total_display": "₦8,700",
-  "fulfilment": "delivery", "zone": "Surulere", "address": "22 Bode Thomas, Surulere", "window": "lunch",
+  "total_kobo": 870000, "total_display": "₦8,500",
+  "fulfilment": "delivery", "zone": "Oke-Fia", "address": "12 Gbongan Road, Oke-Fia", "window": "lunch",
   "link_expires_at_wat": "13:11",
   "next_step": "Repeat the lines and total_display exactly, send authorization_url, and say: tell me 'paid' when done."
 }</pre>
     <div class="lab">Errors</div>
-    <pre class="code err">{"error":"item_unavailable","message":"Ofada rice & ayamase has only 1 portion left.","item_id":"ofada","max_qty":1,"retryable":false}
-{"error":"item_unknown","message":"No item with id 'ofada rice' on today's menu. Call get_menu for current ids.","item_id":"ofada rice","retryable":false}
+    <pre class="code err">{"error":"item_unavailable","message":"Chicken biryani has only 1 portion left.","item_id":"biryani","max_qty":1,"retryable":false}
+{"error":"item_unknown","message":"No item with id 'biryani rice' on today's menu. Call get_menu for current ids.","item_id":'biryani rice',"retryable":false}
 {"error":"window_closed","message":"Lunch orders closed at 14:30. Evening orders open at 17:00.","next_window":{"name":"evening","opens_at":"17:00"},"retryable":false}
-{"error":"zone_required","message":"Delivery needs a zone: Surulere, Yaba or Ikeja.","retryable":false}
+{"error":"zone_required","message":"Delivery needs a zone: Oke-Fia, Ogo-Oluwa or Ota-Efun.","retryable":false}
 {"error":"address_required","message":"Delivery needs a street address.","retryable":false}
 {"error":"validation","message":"items must have between 1 and 12 lines.","field":"items","retryable":false}
 {"error":"paystack_unavailable","message":"Paystack did not respond within 8 seconds. Nothing was charged. Try again in a minute.","retryable":true}
@@ -742,13 +742,13 @@ X-Request-ID: req_01J…
   <div class="ep">
     <div class="ep-head"><span class="tag t-mcp">tool</span><code>verify_payment</code></div>
     <p>Ask Paystack about a reference. Records the check. Never changes order status.</p>
-    <div class="lab">Input</div><pre class="code req">{"reference": "IBK-0231-a1b2"}</pre>
+    <div class="lab">Input</div><pre class="code req">{"reference": "TPK-0231-a1b2"}</pre>
     <div class="lab">Output</div>
     <pre class="code res">{
-  "reference": "IBK-0231-a1b2", "order_no": "IBK-0231",
+  "reference": "TPK-0231-a1b2", "order_no": "TPK-0231",
   "outcome": "success",                    // success | not_confirmed | failed | amount_mismatch
   "paystack_status": "success",
-  "amount_kobo": 870000, "amount_display": "₦8,700",
+  "amount_kobo": 870000, "amount_display": "₦8,500",
   "paid_at": "2026-10-27T11:44:12Z", "gateway_response": "Approved",
   "order_status": "pending_payment",       // current DB status; 'paid' means the reconciler got there first
   "next_step": "Call confirm_order with this reference now."
@@ -756,32 +756,32 @@ X-Request-ID: req_01J…
 // not_confirmed → next_step: "Tell the customer it is not confirmed yet (never 'failed'). The link is open until 13:11. Ask them to finish and say paid again."
 // failed        → gateway_response: "Declined: insufficient funds", next_step: "Say the bank's reason plainly and offer a new link via create_order with the same cart."</pre>
     <div class="lab">Errors</div>
-    <pre class="code err">{"error":"unknown_reference","message":"No order with reference IBK-0231-zzzz.","retryable":false}
+    <pre class="code err">{"error":"unknown_reference","message":"No order with reference TPK-0231-zzzz.","retryable":false}
 {"error":"paystack_unavailable","message":"Paystack did not respond. Try again in a minute; if the customer paid, the payment is safe and will be picked up.","retryable":true}</pre>
   </div>
 
   <div class="ep">
     <div class="ep-head"><span class="tag t-mcp">tool</span><code>confirm_order</code></div>
     <p>Verify again, reserve stock, mark paid, in one transaction. Idempotent on reference. Same code path as the reconciler.</p>
-    <div class="lab">Input</div><pre class="code req">{"reference": "IBK-0231-a1b2"}</pre>
+    <div class="lab">Input</div><pre class="code req">{"reference": "TPK-0231-a1b2"}</pre>
     <div class="lab">Output</div>
     <pre class="code res">{
-  "order_no": "IBK-0231", "status": "paid", "already_confirmed": false, "confirmed_by": "mcp",
+  "order_no": "TPK-0231", "status": "paid", "already_confirmed": false, "confirmed_by": "mcp",
   "customer_name": "Tobi",
   "lines": [{"name":"Jollof rice & chicken","qty":2},{"name":"Chapman","qty":1}],
-  "total_display": "₦8,700",
-  "fulfilment": "delivery", "zone": "Surulere", "address": "22 Bode Thomas, Surulere",
+  "total_display": "₦8,500",
+  "fulfilment": "delivery", "zone": "Oke-Fia", "address": "12 Gbongan Road, Oke-Fia",
   "ready_by_wat": "13:25", "rider_phone": "0801 000 0000",
-  "next_step": "Tell the customer: order IBK-0231 confirmed, ready by about 13:25, the rider will call."
+  "next_step": "Tell the customer: order TPK-0231 confirmed, ready by about 13:25, the rider will call."
 }
 // stock short:
-{"order_no":"IBK-0231","status":"paid_needs_attention","already_confirmed":false,
- "attention_reason":"Ofada rice & ayamase: wanted 2, only 1 left",
- "next_step":"Apologise: payment received but ofada ran out. Iya Bisi will contact them to swap or sort it out. Do not promise a refund."}</pre>
+{"order_no":"TPK-0231","status":"paid_needs_attention","already_confirmed":false,
+ "attention_reason":"Chicken biryani: wanted 2, only 1 left",
+ "next_step":"Apologise: payment received but biryani ran out. TPlus will contact them to swap or sort it out. Do not promise a refund."}</pre>
     <div class="lab">Errors</div>
     <pre class="code err">{"error":"payment_not_confirmed","message":"Paystack has not recorded this payment yet.","outcome":"not_confirmed","retryable":true}
 {"error":"payment_failed","message":"The bank declined the payment: insufficient funds.","outcome":"failed","retryable":false}
-{"error":"amount_mismatch","message":"Paystack recorded ₦8,000 but the order total is ₦8,700. Flagged for Iya Bisi; not confirmed.","retryable":false}
+{"error":"amount_mismatch","message":"Paystack recorded ₦8,000 but the order total is ₦8,500. Flagged for TPlus; not confirmed.","retryable":false}
 {"error":"unknown_reference",…} {"error":"paystack_unavailable",…} {"error":"store_unavailable",…}</pre>
   </div>
 </section>
@@ -802,13 +802,13 @@ type RejectedError struct{ Status int; Message string }   // 4xx with message</p
       <div class="lab">Initialize</div>
       <pre class="code req">POST https://api.paystack.co/transaction/initialize
 Authorization: Bearer sk_test_…
-{"email":"orders+ibk-0231@iyabisi.example","amount":870000,"currency":"NGN","reference":"IBK-0231-a1b2",
- "callback_url":"https://&lt;railway&gt;/paid?ref=IBK-0231-a1b2",
- "metadata":{"order_no":"IBK-0231","custom_fields":[{"display_name":"Order","variable_name":"order_no","value":"IBK-0231"}]}}</pre>
-      <pre class="code res">{"status":true,"data":{"authorization_url":"https://checkout.paystack.com/x7k2…","access_code":"x7k2…","reference":"IBK-0231-a1b2"}}</pre>
+{"email":"orders+ibk-0231@iyabisi.example","amount":870000,"currency":"NGN","reference":"TPK-0231-a1b2",
+ "callback_url":"https://&lt;railway&gt;/paid?ref=TPK-0231-a1b2",
+ "metadata":{"order_no":"TPK-0231","custom_fields":[{"display_name":"Order","variable_name":"order_no","value":"TPK-0231"}]}}</pre>
+      <pre class="code res">{"status":true,"data":{"authorization_url":"https://checkout.paystack.com/x7k2…","access_code":"x7k2…","reference":"TPK-0231-a1b2"}}</pre>
       <div class="lab">Verify</div>
-      <pre class="code req">GET https://api.paystack.co/transaction/verify/IBK-0231-a1b2</pre>
-      <pre class="code res">{"status":true,"data":{"status":"success","reference":"IBK-0231-a1b2","amount":870000,"currency":"NGN",
+      <pre class="code req">GET https://api.paystack.co/transaction/verify/TPK-0231-a1b2</pre>
+      <pre class="code res">{"status":true,"data":{"status":"success","reference":"TPK-0231-a1b2","amount":870000,"currency":"NGN",
  "gateway_response":"Approved","paid_at":"2026-10-27T11:44:12.000Z","channel":"card",…}}</pre>
       <table>
         <thead><tr><th style="width:46%">Paystack <code>data.status</code></th><th>Our <code>outcome</code></th></tr></thead>
@@ -875,7 +875,7 @@ Authorization: Bearer sk_test_…
     <div class="ep-head"><span class="tag t-post">POST</span><code>/api/v1/auth/login</code><span class="tag t-pub">public</span></div>
     <p>10 attempts per minute per IP (Redis). Wrong email and wrong password return the same error and take the same time (bcrypt against a dummy hash when the email is unknown).</p>
     <pre class="code req">{"email":"iyabisi@example.com","password":"…"}</pre>
-    <pre class="code res">200 {"data":{"token":"eyJhbGciOiJIUzI1NiIs…","expires_at":"2026-10-28T11:00:00Z","admin":{"id":"adm_01J…","email":"iyabisi@example.com","name":"Iya Bisi"}}}</pre>
+    <pre class="code res">200 {"data":{"token":"eyJhbGciOiJIUzI1NiIs…","expires_at":"2026-10-28T11:00:00Z","admin":{"id":"adm_01J…","email":"iyabisi@example.com","name":"TPlus"}}}</pre>
     <pre class="code err">401 {"error":{"code":"invalid_credentials","message":"Email or password is wrong.","severity":"auth"}}
 429 {"error":{"code":"rate_limited","message":"Too many attempts. Try again in 42 seconds.","severity":"rate-limited"}}   Retry-After: 42</pre>
   </div>
@@ -883,8 +883,8 @@ Authorization: Bearer sk_test_…
   <div class="ep">
     <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/vendor</code><span class="tag t-jwt">jwt</span></div>
     <pre class="code res">200 {"data":{
-  "vendor_name":"Iya Bisi's Kitchen","pickup_address":"14 Adelabu Street, Surulere, Lagos","rider_phone":"0801 000 0000",
-  "order_prefix":"IBK","prep_minutes":40,"pending_ttl_minutes":30,"low_stock_threshold":3,
+  "vendor_name":"TPlus Kitchen","pickup_address":"TPlus Kitchen, Oke-Fia, Osogbo, Osun","rider_phone":"0801 000 0000",
+  "order_prefix":"TPK","prep_minutes":40,"pending_ttl_minutes":30,"low_stock_threshold":3,
   "windows":{"lunch":{"open":"11:00","close":"15:00","orders_close":"14:30"},"evening":{"open":"17:00","close":"20:30","orders_close":"20:00"}},
   "now":{"wat":"12:40","window":"lunch","orders_open":true,"orders_close_at":"14:30","next_window":null},
   "version":3,"updated_at":"2026-10-27T09:12:00Z"}}</pre>
@@ -915,13 +915,13 @@ Idempotency-Key: 7c0a2e1e-…
   <div class="ep">
     <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/orders?status=paid,paid_needs_attention&amp;cursor=&amp;limit=50</code><span class="tag t-jwt">jwt</span></div>
     <pre class="code res">200 {"data":[
-  {"order_no":"IBK-0231","status":"paid","customer_name":"Tobi","phone_masked":"0801•••5678",
-   "fulfilment":"delivery","zone":{"id":"surulere","name":"Surulere"},"address":"22 Bode Thomas, Surulere","window":"lunch",
-   "lines_summary":"2× Jollof rice & chicken, 1× Chapman","total_kobo":870000,"total_display":"₦8,700",
-   "reference":"IBK-0231-a1b2","paid_at":"2026-10-27T11:44:12Z","ready_by":"2026-10-27T12:25:00Z","ready_by_wat":"13:25",
+  {"order_no":"TPK-0231","status":"paid","customer_name":"Tobi","phone_masked":"0801•••5678",
+   "fulfilment":"delivery","zone":{"id":"okefia","name":"Oke-Fia"},"address":"12 Gbongan Road, Oke-Fia","window":"lunch",
+   "lines_summary":"2× Jollof rice & chicken, 1× Chapman","total_kobo":870000,"total_display":"₦8,500",
+   "reference":"TPK-0231-a1b2","paid_at":"2026-10-27T11:44:12Z","ready_by":"2026-10-27T12:25:00Z","ready_by_wat":"13:25",
    "confirmed_by":"mcp","attention_reason":null,"created_at":"2026-10-27T11:41:03Z"}, …],
  "meta":{"next_cursor":"MjAyNi0xMC0yN1QxMTo0MTowM1p8MDFK…","has_more":true}}</pre>
-    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/api/v1/orders/IBK-0231</code></div>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/api/v1/orders/TPK-0231</code></div>
     <pre class="code res">200 {"data":{ …list row…, "phone":"08012345678","note":"no pepper","source":"mcp","authorization_url":"https://checkout.paystack.com/x7k2…",
   "subtotal_kobo":800000,"subtotal_display":"₦8,000","delivery_fee_kobo":70000,"delivery_fee_display":"₦700",
   "lines":[{"item_id":"jollof","name":"Jollof rice & chicken","qty":2,"unit_price_kobo":350000,"unit_display":"₦3,500","line_kobo":700000,"line_display":"₦7,000"},…],
@@ -929,13 +929,13 @@ Idempotency-Key: 7c0a2e1e-…
   "payment_checks":[{"checked_at":"…","source":"mcp","paystack_status":"success","outcome":"success","amount_kobo":870000,"gateway_response":"Approved","latency_ms":388}],
   "tool_calls":[{"id":915,"tool":"create_order","ok":true,"latency_ms":612,"created_at":"…"},…],
   "resolved_at":null,"resolution_note":null,"expires_at":"2026-10-27T12:11:03Z"}}</pre>
-    <pre class="code err">404 {"error":{"code":"not_found","message":"No order IBK-9999.","severity":"not-found"}}</pre>
-    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/IBK-0231/resolve</code></div>
+    <pre class="code err">404 {"error":{"code":"not_found","message":"No order TPK-9999.","severity":"not-found"}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/TPK-0231/resolve</code></div>
     <pre class="code req">Idempotency-Key: …
-{"note":"Called Tobi, swapped ofada for jollof, he agreed."}</pre>
+{"note":"Called Tobi, swapped biryani for jollof, they agreed."}</pre>
     <pre class="code res">200 {"data":{…,"status":"resolved","resolved_at":"…","resolution_note":"…"}}
 409 {"error":{"code":"invalid_state_transition","message":"Only an order that needs attention can be resolved.","severity":"conflict"}}</pre>
-    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/IBK-0230/cancel</code></div>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/TPK-0230/cancel</code></div>
     <pre class="code req">{"reason":"customer changed mind"}</pre>
     <pre class="code res">200 {"data":{…,"status":"cancelled"}}
 409 {"error":{"code":"invalid_state_transition","message":"Only an unpaid order can be cancelled.","severity":"conflict"}}</pre>
@@ -946,17 +946,17 @@ Idempotency-Key: 7c0a2e1e-…
     <pre class="code res">200 {"data":{"date_wat":"2026-10-27","window":"lunch","orders_open":true,"orders_close_at":"14:30",
   "paid_count":5,"paid_total_kobo":4190000,"paid_total_display":"₦41,900",
   "awaiting_payment_count":1,"needs_attention_count":0,"cancelled_count":1,"expired_count":0,
-  "stock":[{"id":"jollof","name":"Jollof rice & chicken","portions":16,"low":false},{"id":"ofada","name":"Ofada rice & ayamase","portions":1,"low":true},…],
+  "stock":[{"id":"jollof","name":"Jollof rice & chicken","portions":16,"low":false},{"id":"biryani","name":"Chicken biryani","portions":1,"low":true},…],
   "low_stock_threshold":3,"redis":"ok"}}</pre>
   </div>
 
   <div class="ep">
     <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/activity?cursor=&amp;limit=30&amp;tool=confirm_order&amp;ok=false</code><span class="tag t-jwt">jwt</span></div>
     <pre class="code res">200 {"data":[
-  {"id":918,"tool":"confirm_order","ok":true,"error_code":null,"latency_ms":421,"order_no":"IBK-0231","request_id":"req_01J…",
-   "args":{"reference":"IBK-0231-a1b2"},"result":{"order_no":"IBK-0231","status":"paid",…},"created_at":"…"},
+  {"id":918,"tool":"confirm_order","ok":true,"error_code":null,"latency_ms":421,"order_no":"TPK-0231","request_id":"req_01J…",
+   "args":{"reference":"TPK-0231-a1b2"},"result":{"order_no":"TPK-0231","status":"paid",…},"created_at":"…"},
   {"id":917,"tool":"create_order","ok":false,"error_code":"item_unavailable","latency_ms":44,"order_no":null,
-   "args":{"customer_name":"Ngozi","items":[{"item_id":"ofada","qty":2}],"address":"•••• Street","phone":"0801•••0004"},
+   "args":{"customer_name":"Ngozi","items":[{"item_id":"biryani","qty":2}],"address":"•••• Street","phone":"0801•••0004"},
    "result":{"error":"item_unavailable","message":"…","max_qty":1},"created_at":"…"}],
  "meta":{"next_cursor":"OTE2","has_more":true}}</pre>
   </div>
@@ -971,11 +971,11 @@ X-Accel-Buffering: no
 
 id: 1730030652001
 event: order.created
-data: {"order_no":"IBK-0232","at":"2026-10-27T12:04:12Z"}
+data: {"order_no":"TPK-0232","at":"2026-10-27T12:04:12Z"}
 
 id: 1730030671004
 event: order.updated
-data: {"order_no":"IBK-0232","status":"paid","at":"…"}
+data: {"order_no":"TPK-0232","status":"paid","at":"…"}
 
 event: menu.updated
 data: {"at":"…"}
@@ -995,8 +995,8 @@ data: {"at":"…"}
     <pre class="code res">200 {"ok":true,"ready":true,"version":"2026.10.27-3f9c","db":"ok","redis":"ok","paystack":"configured","mcp_tools":4,"reconciler_last_run":"2026-10-27T12:03:00Z","uptime_s":8812}
 200 {"ok":true,"ready":true,…,"redis":"degraded",…}      // still serving
 503 {"ok":false,"ready":false,"db":"error: dial tcp …"}</pre>
-    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/paid?ref=IBK-0231-a1b2</code></div>
-    <p>Go template, same palette as the admin. If the order exists: "Payment received for order IBK-0231. Go back to WhatsApp and reply <b>paid</b> so Iya Bisi's assistant can confirm it." Otherwise a neutral "Thanks, go back to WhatsApp." Never claims success itself. Rate limited 60/min/IP.</p>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/paid?ref=TPK-0231-a1b2</code></div>
+    <p>Go template, same palette as the admin. If the order exists: "Payment received for order TPK-0231. Go back to WhatsApp and reply <b>paid</b> so TPlus's assistant can confirm it." Otherwise a neutral "Thanks, go back to WhatsApp." Never claims success itself. Rate limited 60/min/IP.</p>
   </div>
 </section>
 
@@ -1059,8 +1059,8 @@ func ErrWindowClosed(next Window) *DomainError</pre>
         <tr><td><b>Customer pays, never says "paid"</b></td><td>Nothing until they return</td><td>Order flips to paid within ~3 min</td><td>Reconciler confirms with <code>actor=reconciler</code></td><td><code>orders_confirmed_total{by="reconciler"}</code></td></tr>
         <tr><td><b>Model skips verify, calls confirm</b></td><td>Correct reply either way</td><td>Normal</td><td>Confirm verifies on its own</td><td><code>order_events</code> has no <code>verified</code> before <code>confirmed</code>; counted</td></tr>
         <tr><td><b>Model calls create twice for one cart</b></td><td>Same link, same reference</td><td>One order</td><td>Lock + partial unique index → <code>reused=true</code></td><td><code>orders_created_total{reused="true"}</code></td></tr>
-        <tr><td><b>Two customers pay for the last portion</b></td><td>Second: "payment received, ofada ran out, Iya Bisi will contact you"</td><td>Red needs-attention row with reason</td><td>Lock order, lock items, one decrement, second → <code>paid_needs_attention</code></td><td><code>orders_confirmed_total{status="paid_needs_attention"}</code></td></tr>
-        <tr><td><b>Amount tampered or partial</b></td><td>"Flagged for Iya Bisi, not confirmed"</td><td>Check row with <code>amount_mismatch</code></td><td>Not confirmed; stock untouched</td><td><code>payment_checks_total{outcome="amount_mismatch"}</code>; WARN</td></tr>
+        <tr><td><b>Two customers pay for the last portion</b></td><td>Second: "payment received, biryani ran out, TPlus will contact you"</td><td>Red needs-attention row with reason</td><td>Lock order, lock items, one decrement, second → <code>paid_needs_attention</code></td><td><code>orders_confirmed_total{status="paid_needs_attention"}</code></td></tr>
+        <tr><td><b>Amount tampered or partial</b></td><td>"Flagged for TPlus, not confirmed"</td><td>Check row with <code>amount_mismatch</code></td><td>Not confirmed; stock untouched</td><td><code>payment_checks_total{outcome="amount_mismatch"}</code>; WARN</td></tr>
         <tr><td><b>Redis down</b></td><td>Nothing</td><td>"Live updates paused" chip; board polls</td><td>Fallbacks per §07; <code>degraded</code> event emitted when it returns</td><td><code>redis_fallback_total{use}</code>; healthz <code>redis: degraded</code></td></tr>
         <tr><td><b>Postgres down</b></td><td>"Ordering system not responding, nothing charged"</td><td>Board error state with retry</td><td>503 on healthz; Railway restarts; no writes possible so nothing is half-done</td><td><code>db_up</code> gauge 0; Railway health alert</td></tr>
         <tr><td><b>Crash between order insert and initialize</b></td><td>Error reply</td><td>Order cancelled after 2 min</td><td>Reconciler step 2 cancels reference-less pending orders</td><td><code>reconcile_orders_total{result="init_lost"}</code></td></tr>
@@ -1154,8 +1154,8 @@ func ErrWindowClosed(next Window) *DomainError</pre>
   <div class="grid g2">
     <div class="card">
       <h3>Logs (<code>slog</code> JSON → stdout → Railway)</h3>
-      <pre class="code">{"time":"…","level":"INFO","msg":"tool","tool":"confirm_order","ok":true,"latency_ms":421,"order_no":"IBK-0231","actor":"mcp","request_id":"req_01J…"}
-{"time":"…","level":"WARN","msg":"paystack","op":"verify","reference":"IBK-0231-a1b2","status":"abandoned","latency_ms":388,"request_id":"…"}
+      <pre class="code">{"time":"…","level":"INFO","msg":"tool","tool":"confirm_order","ok":true,"latency_ms":421,"order_no":"TPK-0231","actor":"mcp","request_id":"req_01J…"}
+{"time":"…","level":"WARN","msg":"paystack","op":"verify","reference":"TPK-0231-a1b2","status":"abandoned","latency_ms":388,"request_id":"…"}
 {"time":"…","level":"WARN","msg":"redis.fallback","use":"cache","err":"dial tcp: i/o timeout"}
 {"time":"…","level":"ERROR","msg":"http","method":"GET","path":"/api/v1/orders","status":500,"err":"…","request_id":"…"}</pre>
       <ul class="clean">

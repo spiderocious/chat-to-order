@@ -4,15 +4,15 @@
 set -euo pipefail
 BASE=${CHORD_BASE_URL:-https://api.chordhq.xyz}
 : "${CHORD_API_KEY:?}" "${CHORD_WORKSPACE_ID:?}"
-NAME=${TEAMMATE_NAME:-"Iya Bisi's Kitchen"}
-EMAIL=${TEAMMATE_EMAIL:-"iya-bisi-orders@chat-to-order.chord"}
+NAME=${TEAMMATE_NAME:-"TPlus Kitchen"}
+EMAIL=${TEAMMATE_EMAIL:-"tplus-orders@chat-to-order.chord"}
 SKILL_DIR=${SKILL_DIR:-"$(cd "$(dirname "$0")/../../skill/food-vendor" && pwd)"}
 H=(-H "Authorization: Bearer $CHORD_API_KEY" -H 'Content-Type: application/json')
 
 echo "== 1. create teammate"
-PERSONA="You are the ordering assistant for Iya Bisi's Kitchen on WhatsApp. Follow the food-vendor skill exactly: every price, total, reference and time comes from a tool result; never confirm an order before confirm_order returns status paid."
+PERSONA="You are the ordering assistant for TPlus Kitchen on WhatsApp. Follow the food-vendor skill exactly: every price, total, reference and time comes from a tool result; never confirm an order before confirm_order returns status paid."
 TM=$(curl -sS -X POST "$BASE/v1/teammates" "${H[@]}" --data "$(jq -n --arg e "$EMAIL" --arg n "$NAME" --arg w "$CHORD_WORKSPACE_ID" --arg p "$PERSONA" \
-  '{email:$e, first_name:"Iya Bisi", last_name:"Orders", display_name:$n, role:"ordering_assistant", workspace_id:$w, persona:$p, start_paused:false, creation_request_id:("ctpo-"+($n|ascii_downcase|gsub("[^a-z0-9]+";"-")))}')")
+  '{email:$e, first_name:"TPlus", last_name:"Orders", display_name:$n, role:"ordering_assistant", workspace_id:$w, persona:$p, start_paused:false, creation_request_id:("ctpo-"+($n|ascii_downcase|gsub("[^a-z0-9]+";"-")))}')")
 echo "$TM" | jq '{id, display_name, workspace_id, lifecycle_state}'
 TID=$(echo "$TM" | jq -r '.id // empty')
 [ -n "$TID" ] || { echo "create failed: $TM"; exit 1; }

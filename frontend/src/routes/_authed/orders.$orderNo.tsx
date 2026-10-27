@@ -17,7 +17,7 @@ export const Route = createFileRoute('/_authed/orders/$orderNo')({
       <div className="px-6 pb-6 text-center text-[13px]">No such order. <Link to={ROUTES.ORDERS} className="font-bold text-leaf-700 underline">Back to orders</Link></div>
     </Pass>
   ),
-  component: () => {
+  component: function OrderDetailPage() {
     const { orderNo } = Route.useParams()
     return <OrderDetailScreen orderNo={orderNo} />
   },

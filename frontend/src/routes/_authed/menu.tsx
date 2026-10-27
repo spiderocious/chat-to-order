@@ -4,7 +4,7 @@ import MenuScreen from '@features/menu/screen/menu-screen'
 
 export const Route = createFileRoute('/_authed/menu')({
   validateSearch: z.object({ edit: z.string().optional() }),
-  component: () => {
+  component: function MenuPage() {
     const { edit } = Route.useSearch()
     return <MenuScreen edit={edit} />
   },

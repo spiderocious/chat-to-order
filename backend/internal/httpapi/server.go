@@ -101,7 +101,7 @@ func (s *Server) Router() *gin.Engine {
 	admin.PATCH("/zones/:id", s.idempotent(), s.patchZone)
 
 	// Literal sub-paths are registered before the parameterised detail so
-	// /orders/IBK-0231/resolve is never swallowed by /orders/:order_no.
+	// /orders/TPK-0231/resolve is never swallowed by /orders/:order_no.
 	admin.POST("/orders/:order_no/resolve", s.idempotent(), s.resolveOrder)
 	admin.POST("/orders/:order_no/cancel", s.idempotent(), s.cancelOrder)
 	admin.GET("/orders", s.listOrders)
