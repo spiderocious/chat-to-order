@@ -80,7 +80,7 @@ func ErrTotalTooLarge(limit money.Kobo) *DomainError {
 }
 
 func ErrUnknownReference(ref string) *DomainError {
-	return newErr("unknown_reference", fmt.Sprintf("No order with reference %s.", ref), false, map[string]any{"reference": ref})
+	return newErr("unknown_reference", fmt.Sprintf("No order with reference %s. Use the reference or order number that create_order returned in this conversation; if you do not have it, ask the customer for the order number on their payment page (it looks like IBK-0000) and call again with that.", ref), false, map[string]any{"reference": ref})
 }
 
 func ErrPaystackUnavailable(action string) *DomainError {

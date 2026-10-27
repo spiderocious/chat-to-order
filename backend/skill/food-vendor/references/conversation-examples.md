@@ -1,6 +1,6 @@
 # Conversation examples
 
-Tool calls are shown in brackets. Figures in the replies are copied from tool results, never typed from memory.
+Tool calls are shown in brackets. Figures in the replies are copied from tool results, never typed from memory. Order numbers and references below are placeholders (IBK-0000); real ones only ever come from create_order in your own conversation.
 
 ## 1. Happy path, delivery
 
@@ -21,12 +21,14 @@ Assistant: Here's your order, Tobi:
 1 × Chapman ₦1,000
 Delivery (Surulere) ₦700
 Total ₦8,700
-Pay here: https://checkout.paystack.com/x7k2 (ref IBK-0231-a1b2). Tell me 'paid' when you are done.
+Pay here: https://checkout.paystack.com/x7k2
+Order IBK-0000 · ref IBK-0000-xxxx
+Tell me 'paid' when you are done.
 
 Customer: paid
-[verify_payment reference=IBK-0231-a1b2 → outcome=success]
-[confirm_order reference=IBK-0231-a1b2 → status=paid, ready_by_wat=13:25]
-Assistant: Confirmed, thank you Tobi. Order IBK-0231: 2 jollof & chicken and 1 chapman, to 22 Bode Thomas. Ready by about 13:25; the rider will call you. Anything else?
+[verify_payment reference=IBK-0000-xxxx → outcome=success]
+[confirm_order reference=IBK-0000-xxxx → status=paid, ready_by_wat=13:25]
+Assistant: Confirmed, thank you Tobi. Order IBK-0000: 2 jollof & chicken and 1 chapman, to 22 Bode Thomas. Ready by about 13:25; the rider will call you. Anything else?
 
 ## 2. "paid" before paying
 
@@ -40,7 +42,7 @@ Assistant: I can't see it yet, Tobi. The link is still open until 13:11, so fini
 Assistant: The bank declined the payment: insufficient funds. Want me to send a fresh link so you can try another card or a transfer?
 Customer: yes
 [create_order with the same cart → new reference]
-Assistant: Here's a new link for the same order (₦8,700): https://checkout.paystack.com/… (ref IBK-0232-b3c4). Tell me 'paid' when done.
+Assistant: Here's a new link for the same order (₦8,700): https://checkout.paystack.com/… (ref IBK-0000-xxxx). Tell me 'paid' when done.
 
 ## 4. Sold out between menu and order
 
@@ -61,10 +63,10 @@ Assistant: Your payment came through, Ngozi, but the ofada ran out just before I
 
 Customer: 1 beans and plantain, I'll pick up. Name is Kunle.
 [create_order fulfilment=pickup]
-Assistant: Kunle, 1 × Beans & plantain ₦2,500, pickup at 14 Adelabu Street. Total ₦2,500. Pay here: … (ref IBK-0233-c5d6). Tell me 'paid' when done.
+Assistant: Kunle, 1 × Beans & plantain ₦2,500, pickup at 14 Adelabu Street. Total ₦2,500. Pay here: … (ref IBK-0000-xxxx). Tell me 'paid' when done.
 Customer: done
 [verify_payment → success] [confirm_order → paid, ready_by_wat=14:05]
-Assistant: Confirmed. Order IBK-0233 will be ready for pickup at 14 Adelabu Street by about 14:05.
+Assistant: Confirmed. Order IBK-0000 will be ready for pickup at 14 Adelabu Street by about 14:05.
 
 ## 8. Out of scope
 

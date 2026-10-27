@@ -43,9 +43,9 @@ var createOrderSchema = &jsonschema.Schema{
 
 var referenceSchema = &jsonschema.Schema{
 	Type:        "object",
-	Description: `Example: {"reference":"IBK-0231-a1b2"}. The order number alone (IBK-0231) is also accepted.`,
+	Description: `Pass the reference exactly as create_order returned it in this conversation (shape IBK-0000-xxxx), or the order number the customer reads from their payment page (shape IBK-0000). Never a reference from memory or from an example.`,
 	Properties: map[string]*jsonschema.Schema{
-		"reference": prop("string", "Required. The Paystack reference returned by create_order, like IBK-0231-a1b2. The order number alone also works."),
+		"reference": prop("string", "Required. The reference from create_order in this conversation, or the customer's order number. Never guessed."),
 	},
 }
 

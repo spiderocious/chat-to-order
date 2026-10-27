@@ -65,7 +65,7 @@ type CartLineInput struct {
 }
 
 type ReferenceInput struct {
-	Reference string `json:"reference" jsonschema:"The Paystack reference returned by create_order, like IBK-0231-a1b2"`
+	Reference string `json:"reference" jsonschema:"The Paystack reference returned by create_order, like IBK-0000-xxxx"`
 }
 
 // toolError renders a DomainError as the MCP tool error payload.
