@@ -10,8 +10,8 @@ INSERT INTO delivery_zones (id, name, fee_kobo, sort) VALUES
   ('ikeja',   'Ikeja',   180000,3);
 
 INSERT INTO menu_items (id, name, description, price_kobo, portions, "window", sort) VALUES
-  ('jollof',  'Jollof rice & chicken', 'Party-style smoky jollof with a piece of chicken', 350000, 20, 'lunch',   1),
-  ('fried',   'Fried rice & chicken',  'Fried rice with mixed veg and a piece of chicken', 350000, 15, 'lunch',   2),
+  ('jollof',  'Jollof rice & chicken', 'Party-style smoky jollof with a piece of chicken', 350000, 20, 'all',     1),
+  ('fried',   'Fried rice & chicken',  'Fried rice with mixed veg and a piece of chicken', 350000, 15, 'all',     2),
   ('ofada',   'Ofada rice & ayamase',  'Local ofada rice with green pepper sauce',         400000,  2, 'lunch',   3),
   ('beans',   'Beans & plantain',      'Ewa riro with fried plantain',                    250000, 12, 'all',     4),
   ('moimoi',  'Moi moi',               'Steamed bean pudding',                             80000, 30, 'all',     5),
