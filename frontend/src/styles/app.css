@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* Tokens: Ohlify's contracts, this product's skin. Light only. */
+@theme {
+  --color-paper: #fbfaf7;
+  --color-paper-2: #f3f1ea;
+  --color-paper-3: #ebe8df;
+  --color-card: #ffffff;
+  --color-ink: #1b2430;
+  --color-ink-2: #3d4c5c;
+  --color-ink-3: #6b7a89;
+  --color-ink-4: #9aa7b3;
+  --color-line: #e6e2d8;
+  --color-line-2: #d3cec1;
+
+  --color-leaf-50: #f0f8f3;
+  --color-leaf-100: #dff1e6;
+  --color-leaf-200: #b9e2c9;
+  --color-leaf-300: #8ccfa8;
+  --color-leaf: #1f8a5b;
+  --color-leaf-600: #19754d;
+  --color-leaf-700: #14603f;
+  --color-leaf-900: #0b3a25;
+
+  --color-success: #1f8a5b;
+  --color-success-soft: #e3f4ea;
+  --color-success-on: #14603f;
+  --color-success-border: #b4dfc6;
+  --color-caution: #d98c1f;
+  --color-caution-soft: #fdf2df;
+  --color-caution-on: #7a4b07;
+  --color-caution-border: #f3d6a0;
+  --color-critical: #d64545;
+  --color-critical-soft: #fde9e9;
+  --color-critical-on: #8a1f1f;
+  --color-critical-border: #f5bcbc;
+  --color-info: #2f6fd6;
+  --color-info-soft: #e8f0fd;
+  --color-info-on: #1c3f85;
+  --color-info-border: #bcd1f5;
+  --color-neutral: #6b7a89;
+  --color-neutral-soft: #f3f1ea;
+  --color-neutral-on: #3d4c5c;
+  --color-neutral-border: #d3cec1;
+  --color-danger: #c0392b;
+  --color-danger-hover: #a93226;
+
+  --font-text: "Nunito", system-ui, sans-serif;
+  --font-display: "Baloo 2", "Nunito", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-blade: 20px 6px 20px 6px;
+  --radius-blade-sm: 12px 4px 12px 4px;
+  --radius-blade-xs: 8px 3px 8px 3px;
+
+  --shadow-pass: 3px 4px 0 #1b2430;
+  --shadow-pass-sm: 2px 3px 0 #1b2430;
+  --shadow-overlay: 5px 6px 0 #1b2430;
+  --shadow-ring: 0 0 0 3px rgba(31, 138, 91, 0.28);
+
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+:root { color-scheme: light; }
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.tnum { font-variant-numeric: tabular-nums; }
+code, .mono { font-family: var(--font-mono); }
+
+/* PASS: card stock. BOARD: an instrument. */
+.pass { background: var(--color-card); border: 2px solid var(--color-ink); border-radius: var(--radius-blade-sm); box-shadow: var(--shadow-pass); }
+.pass-xs { background: var(--color-card); border: 2px solid var(--color-ink); border-radius: var(--radius-blade-xs); box-shadow: var(--shadow-pass-sm); }
+.board { background: var(--color-card); border: 1px solid var(--color-line); border-radius: 8px; }
+.hairline { border-bottom: 1px solid var(--color-line); }
+
+/* Motion */
+@keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(31,138,91,.45); } 100% { box-shadow: 0 0 0 10px rgba(31,138,91,0); } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.breathe { animation: breathe 2s ease-in-out infinite; }
+.skeleton { background: linear-gradient(90deg, var(--color-paper-2) 25%, var(--color-paper-3) 37%, var(--color-paper-2) 63%); background-size: 800px 100%; animation: shimmer 1.4s linear infinite; border-radius: 6px; }
+.ring-pulse { animation: ring 0.5s var(--ease-standard) 1; }
+.shake { animation: shake 0.24s var(--ease-standard) 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .breathe, .skeleton, .ring-pulse, .shake { animation: none !important; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* iOS safe area for the tab bar */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.dvh { min-height: 100dvh; }
+
+::selection { background: var(--color-leaf-200); }
+:focus-visible { outline: none; box-shadow: var(--shadow-ring); border-radius: 6px; }
