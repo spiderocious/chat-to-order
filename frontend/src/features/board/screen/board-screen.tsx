@@ -62,7 +62,7 @@ export default function BoardScreen() {
       <div className="grid min-w-0 gap-5 lg:grid-cols-[1fr_380px]">
         <motion.section className="min-w-0" custom={2} variants={stagger} initial="hidden" animate="show">
           <SectionTitle aside={<Link to={ROUTES.MENU} className="text-[12.5px] font-extrabold text-leaf-700 hover:underline">Edit menu</Link>}>Stock</SectionTitle>
-          <div className="flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+          <div className="flex flex-col gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
             {stats.data?.stock.map((s) => (
               <Link key={s.id} to={ROUTES.MENU} search={{ edit: s.id }} className={cn('pass-xs flex shrink-0 items-center gap-2 px-3 py-2 text-[12.5px] transition-colors', !s.offered_now && 'opacity-60')}>
                 <span className="font-bold">{s.name}</span>
