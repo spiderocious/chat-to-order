@@ -31,12 +31,14 @@ func (e *RejectedError) Error() string {
 }
 
 type InitializeReq struct {
-	Email       string         `json:"email"`
-	AmountKobo  int64          `json:"amount"`
-	Currency    string         `json:"currency"`
-	Reference   string         `json:"reference"`
-	CallbackURL string         `json:"callback_url"`
-	Metadata    map[string]any `json:"metadata,omitempty"`
+	Email         string         `json:"email"`
+	AmountKobo    int64          `json:"amount"`           // what the customer was charged, fees included when the customer bears them
+	RequestedKobo int64          `json:"requested_amount"` // what we asked for; the figure to compare against the order
+	FeesKobo      int64          `json:"fees"`
+	Currency      string         `json:"currency"`
+	Reference     string         `json:"reference"`
+	CallbackURL   string         `json:"callback_url"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
 }
 
 type InitializeRes struct {
@@ -48,7 +50,9 @@ type InitializeRes struct {
 type VerifyRes struct {
 	Status          string          `json:"status"` // success | abandoned | failed | pending | ongoing | reversed …
 	Reference       string          `json:"reference"`
-	AmountKobo      int64           `json:"amount"`
+	AmountKobo      int64           `json:"amount"`           // charged to the customer; includes the fee when the customer bears it
+	RequestedKobo   int64           `json:"requested_amount"` // what we asked for; compare the order against this
+	FeesKobo        int64           `json:"fees"`
 	Currency        string          `json:"currency"`
 	GatewayResponse string          `json:"gateway_response"`
 	PaidAt          *time.Time      `json:"paid_at"`
@@ -178,10 +182,20 @@ const (
 	OutcomeAmountMismatch = "amount_mismatch"
 )
 
+// Settled is the amount to compare with the order total. When the merchant
+// passes Paystack's fee to the customer, data.amount includes the fee and
+// data.requested_amount is the price we asked for.
+func (v VerifyRes) Settled() int64 {
+	if v.RequestedKobo > 0 {
+		return v.RequestedKobo
+	}
+	return v.AmountKobo
+}
+
 func Outcome(v VerifyRes, expectedKobo int64) string {
 	switch v.Status {
 	case "success":
-		if v.AmountKobo != expectedKobo || (v.Currency != "" && v.Currency != "NGN") {
+		if v.Settled() != expectedKobo || (v.Currency != "" && v.Currency != "NGN") {
 			return OutcomeAmountMismatch
 		}
 		return OutcomeSuccess

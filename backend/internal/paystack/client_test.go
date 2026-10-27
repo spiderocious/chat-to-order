@@ -43,6 +43,7 @@ func TestOutcomeMapping(t *testing.T) {
 		want string
 	}{
 		{"success", 870000, "NGN", OutcomeSuccess},
+		{"success", 893402, "NGN", OutcomeAmountMismatch}, // without requested_amount, a fee-inclusive charge mismatches
 		{"success", 800000, "NGN", OutcomeAmountMismatch},
 		{"success", 870000, "USD", OutcomeAmountMismatch},
 		{"abandoned", 870000, "NGN", OutcomeNotConfirmed},
@@ -55,6 +56,14 @@ func TestOutcomeMapping(t *testing.T) {
 		if got := Outcome(VerifyRes{Status: c.st, AmountKobo: c.amt, Currency: c.cur}, 870000); got != c.want {
 			t.Errorf("%+v: got %s", c, got)
 		}
+	}
+}
+
+func TestFeeBearerCustomer(t *testing.T) {
+	// Customer bears the fee: amount includes it, requested_amount is ours.
+	v := VerifyRes{Status: "success", AmountKobo: 893402, RequestedKobo: 870000, FeesKobo: 23402, Currency: "NGN"}
+	if Outcome(v, 870000) != OutcomeSuccess {
+		t.Fatal("requested_amount must win")
 	}
 }
 

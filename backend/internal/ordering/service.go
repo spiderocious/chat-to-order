@@ -488,7 +488,8 @@ func (s *Service) check(ctx context.Context, o store.Order, source string) (pays
 	outcome := paystack.Outcome(v, int64(o.TotalKobo))
 	pc.Outcome = outcome
 	pc.PaystackStatus = &v.Status
-	pc.AmountKobo = &v.AmountKobo
+	settled := v.Settled()
+	pc.AmountKobo = &settled
 	pc.Currency = &v.Currency
 	pc.GatewayResponse = &v.GatewayResponse
 	pc.Raw = v.Raw
@@ -544,7 +545,7 @@ func (s *Service) VerifyPayment(ctx context.Context, reference, source string) (
 
 	out := VerifyOutput{
 		Reference: reference, OrderNo: o.OrderNo, Outcome: outcome, PaystackStatus: v.Status,
-		AmountKobo: money.Kobo(v.AmountKobo), AmountDisplay: money.Kobo(v.AmountKobo).Format(),
+		AmountKobo: money.Kobo(v.Settled()), AmountDisplay: money.Kobo(v.Settled()).Format(),
 		GatewayResponse: v.GatewayResponse, OrderStatus: o.Status,
 	}
 	if v.PaidAt != nil {
@@ -565,7 +566,7 @@ func (s *Service) VerifyPayment(ctx context.Context, reference, source string) (
 		out.Message = "The bank declined the payment: " + humanGateway(v.GatewayResponse) + "."
 		out.NextStep = "Say the bank's reason plainly and offer a new link by calling create_order again with the same cart."
 	case paystack.OutcomeAmountMismatch:
-		out.Message = fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for Iya Bisi.", money.Kobo(v.AmountKobo).Format(), o.TotalKobo.Format())
+		out.Message = fmt.Sprintf("Paystack recorded %s but the order total is %s. Flagged for Iya Bisi.", money.Kobo(v.Settled()).Format(), o.TotalKobo.Format())
 		out.NextStep = "Do not confirm. Tell the customer the amount did not match and Iya Bisi will contact them."
 	}
 	return out, nil
@@ -615,8 +616,8 @@ func (s *Service) ConfirmOrder(ctx context.Context, reference, actor string) (Co
 	case paystack.OutcomeFailed:
 		return ConfirmOutput{}, ErrPaymentFailed(v.GatewayResponse)
 	case paystack.OutcomeAmountMismatch:
-		_ = store.AddEvent(ctx, s.db.Pool, o.ID, "amount_mismatch", actor, map[string]any{"got": v.AmountKobo, "want": o.TotalKobo})
-		return ConfirmOutput{}, ErrAmountMismatch(money.Kobo(v.AmountKobo), o.TotalKobo)
+		_ = store.AddEvent(ctx, s.db.Pool, o.ID, "amount_mismatch", actor, map[string]any{"got": v.Settled(), "charged": v.AmountKobo, "fees": v.FeesKobo, "want": o.TotalKobo})
+		return ConfirmOutput{}, ErrAmountMismatch(money.Kobo(v.Settled()), o.TotalKobo)
 	}
 
 	paidAt := time.Now()
