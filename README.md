@@ -6,7 +6,7 @@ Built for the TSG Labs build exercise, role: Forward-deployed Engineering.
 
 | Live | URL |
 |---|---|
-| Teammate on Chord | "Iya Bisi's Kitchen" (workspace ws-cf60d772…), reachable in the WhatsApp simulator |
+| Teammate on Chord | "Iya Bisi's Kitchen", simulator chat link https://chat.tsglabs.dev/c/jIMwkWWy_4MoJukWyBnCZ3h1 |
 | Admin panel | https://chat-to-order-986.netlify.app |
 | Backend + MCP | https://backend-production-c54f.up.railway.app (`/healthz`, `/mcp`, `/api/v1`) |
 
