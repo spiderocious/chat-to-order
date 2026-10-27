@@ -1,0 +1,11 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: chat_to_order
+    ports: ["5433:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres"], interval: 2s, retries: 20 }
+  redis:
+    image: redis:7-alpine
+    ports: ["6380:6379"]

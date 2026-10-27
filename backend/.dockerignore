@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+dist/
+scripts/
+skill/
+docker-compose.yml
+*.md

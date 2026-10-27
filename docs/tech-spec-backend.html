@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend and MCP Spec</title>
+<meta name="description" content="Technical design for the chat-to-order backend: Go + Gin on Railway with Postgres and Redis, exposing an MCP endpoint for the Chord teammate, a REST and SSE API for the admin panel, Paystack integration, reconciliation, caching, failure modes, SLOs and a runbook.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1b2430; --ink-2:#3d4c5c; --ink-3:#6b7a89; --ink-4:#9aa7b3;
+  --paper:#fbfaf7; --paper-2:#f3f1ea; --paper-3:#ebe8df;
+  --line:#e6e2d8; --line-2:#d3cec1;
+  --leaf-50:#f0f8f3; --leaf-100:#dff1e6; --leaf-200:#b9e2c9; --leaf:#1f8a5b; --leaf-700:#14603f;
+  --success:#1f8a5b; --success-soft:#e3f4ea; --success-border:#b4dfc6; --success-onsoft:#14603f;
+  --caution:#d98c1f; --caution-soft:#fdf2df; --caution-border:#f3d6a0; --caution-onsoft:#7a4b07;
+  --critical:#d64545; --critical-soft:#fde9e9; --critical-border:#f5bcbc; --critical-onsoft:#8a1f1f;
+  --info:#2f6fd6; --info-soft:#e8f0fd; --info-border:#bcd1f5; --info-onsoft:#1c3f85;
+  --redis:#b4232c; --redis-soft:#fdecea;
+  --blade:20px 6px 20px 6px; --blade-sm:12px 4px 12px 4px; --blade-xs:8px 3px 8px 3px;
+  --edge:3px 4px 0 var(--ink); --edge-sm:2px 3px 0 var(--ink);
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Baloo 2',Nunito,sans-serif;letter-spacing:-.02em;margin:0}
+a{color:var(--info)}
+code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;background:var(--paper-2);padding:1.5px 5px;border-radius:4px;color:var(--ink)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 80px}
+.masthead{border:2px solid var(--ink);border-radius:var(--blade);box-shadow:var(--edge);padding:26px;margin-bottom:24px;background:linear-gradient(150deg,var(--leaf-50),#fff 55%)}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.masthead h1{font-size:34px;font-weight:800;margin:6px 0 8px}
+.masthead p{margin:0;max-width:82ch;color:var(--ink-2)}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.pill{font-size:11.5px;font-weight:800;padding:5px 11px;border-radius:999px;background:var(--paper-2);color:var(--ink-2);border:1.5px solid var(--line-2)}
+.pill.ok{background:var(--success-soft);color:var(--success-onsoft);border-color:var(--success-border)}
+.pill.warn{background:var(--caution-soft);color:var(--caution-onsoft);border-color:var(--caution-border)}
+.pill.redis{background:var(--redis-soft);color:var(--redis);border-color:#f3b9bd}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+nav.toc a{font-size:12.5px;font-weight:800;text-decoration:none;color:var(--ink-2);border:1.5px solid var(--line-2);border-radius:var(--blade-xs);padding:6px 11px;background:#fff}
+nav.toc a:hover{border-color:var(--ink);color:var(--ink)}
+section{margin-bottom:42px;scroll-margin-top:16px}
+.sec-head{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+.num{font-family:'JetBrains Mono';font-size:12px;font-weight:600;color:#fff;background:var(--ink);border-radius:var(--blade-xs);padding:3px 8px}
+.sec-head h2{font-size:23px;font-weight:800}
+.sec-head .rule{flex:1;height:2px;background:var(--line);border-radius:2px}
+.lede{color:var(--ink-2);max-width:82ch;margin:0 0 16px}
+.card{border:2px solid var(--ink);border-radius:var(--blade);box-shadow:var(--edge);background:#fff;padding:18px;margin-bottom:14px}
+.card.quiet{border:1.5px solid var(--line-2);box-shadow:none}
+.card h3{font-size:16.5px;font-weight:800;margin-bottom:10px}
+.card h4{font-size:14px;font-weight:800;margin:16px 0 6px}
+.card p{font-size:13.5px;color:var(--ink-2);margin:0 0 8px}
+.grid{display:grid;gap:14px}
+.grid>*{min-width:0}
+.card{min-width:0;max-width:100%;overflow-x:auto}
+pre.code{max-width:100%}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px 8px 0;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);border-bottom:2px solid var(--line-2);vertical-align:bottom}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.t-get{background:var(--info-soft);color:var(--info-onsoft)}
+.t-post{background:var(--success-soft);color:var(--success-onsoft)}
+.t-put{background:var(--caution-soft);color:var(--caution-onsoft)}
+.t-pub{background:var(--paper-2);color:var(--ink-3)}
+.t-jwt{background:var(--leaf-100);color:var(--leaf-700)}
+.t-mcp{background:#efe9fe;color:#4c1d95}
+.t-sse{background:#fdf2df;color:#7a4b07}
+.t-adr{background:var(--ink);color:#fff}
+.note{border-radius:var(--blade-xs);padding:11px 13px;font-size:13px;margin:12px 0}
+.note.good{background:var(--success-soft);color:var(--success-onsoft)}
+.note.warn{background:var(--caution-soft);color:var(--caution-onsoft)}
+.note.bad{background:var(--critical-soft);color:var(--critical-onsoft)}
+.note.info{background:var(--info-soft);color:var(--info-onsoft)}
+.note b{font-weight:800}
+ul.clean,ol.clean{margin:8px 0;padding-left:18px}
+ul.clean li,ol.clean li{margin-bottom:6px;color:var(--ink-2);font-size:13.5px}
+ul.clean li b,ol.clean li b{color:var(--ink)}
+pre.code{background:var(--paper-2);border-radius:var(--blade-xs);padding:12px 14px;font-family:'JetBrains Mono';font-size:11.5px;line-height:1.6;overflow-x:auto;margin:10px 0;white-space:pre}
+pre.code.req{border-left:4px solid var(--info)}
+pre.code.res{border-left:4px solid var(--success)}
+pre.code.err{border-left:4px solid var(--critical)}
+.ep{border:1.5px solid var(--line-2);border-radius:var(--blade-sm);padding:14px 16px;margin:12px 0;background:#fff}
+.ep-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.ep-head code{font-size:13px;background:none;padding:0;font-weight:600}
+.ep p{font-size:13.5px;color:var(--ink-2);margin:4px 0 8px}
+.lab{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:10px 0 2px}
+.adr{border-left:4px solid var(--ink);padding:4px 0 4px 14px;margin:12px 0}
+.adr h4{margin:0 0 4px}
+.adr p{margin:0 0 4px}
+svg text{font-family:Nunito,system-ui,sans-serif;font-size:12px;fill:var(--ink)}
+svg .mono{font-family:'JetBrains Mono';font-size:10.5px}
+svg .k{font-size:10px;fill:var(--ink-3);font-weight:800;letter-spacing:.06em}
+svg .b{font-weight:800}
+.diagram{background:#fff;border:2px solid var(--ink);border-radius:var(--blade-sm);box-shadow:var(--edge-sm);padding:10px;margin:12px 0;overflow-x:auto}
+.foot{margin-top:46px;padding-top:16px;border-top:2px solid var(--line);font-size:12px;color:var(--ink-4);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="masthead">
+  <div class="eyebrow">Chat to paid order · Technical design · Backend and MCP · v2 · 27 Oct 2026</div>
+  <h1>One Go service: the teammate's tools, the vendor's API, and the money path</h1>
+  <p>
+    A Go + Gin service on Railway with Postgres as the system of record and Redis for cache, locks, rate
+    limits, idempotency and live events. It exposes an MCP endpoint the Chord teammate calls over Streamable
+    HTTP, and a REST + SSE API the admin panel consumes. Payment truth comes from calling Paystack's verify endpoint, never from a webhook. This document is the contract:
+    decisions and why, every endpoint with payloads, the schema, the transactions that move stock and money,
+    what is cached and for how long, how it fails, what we promise, and how to run it at 2 am.
+    Companion: <a href="tech-spec-web.html">tech-spec-web.html</a>. Plan: <a href="plan.html">plan.html</a>.
+  </p>
+  <div class="pills">
+    <span class="pill ok">Go 1.27 · Gin · pgx/v5 · goose · go-redis/v9 · MCP Go SDK</span>
+    <span class="pill ok">Postgres: system of record</span>
+    <span class="pill redis">Redis: cache · locks · limits · idempotency · pub/sub</span>
+    <span class="pill">Money in kobo, int64</span>
+    <span class="pill warn">The server never trusts the model</span>
+    <span class="pill">Self-contained in /backend</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <a href="#s0">00 Context</a>
+  <a href="#s1">01 Decisions (ADRs)</a>
+  <a href="#s2">02 Boundaries</a>
+  <a href="#s3">03 Layout</a>
+  <a href="#s4">04 Data model</a>
+  <a href="#s5">05 Migrations and seed</a>
+  <a href="#s6">06 Domain rules</a>
+  <a href="#s7">07 Redis</a>
+  <a href="#s8">08 MCP endpoint</a>
+  <a href="#s9">09 The four tools</a>
+  <a href="#s10">10 Paystack and reconciliation</a>
+  <a href="#s11">11 REST and SSE API</a>
+  <a href="#s12">12 Errors</a>
+  <a href="#s13">13 Failure modes</a>
+  <a href="#s14">14 SLOs and capacity</a>
+  <a href="#s15">15 Security</a>
+  <a href="#s16">16 Observability</a>
+  <a href="#s17">17 Config, deploy, runbook</a>
+  <a href="#s18">18 Tests</a>
+</nav>
+
+<!-- ───────────────────────────── -->
+<section id="s0">
+  <div class="sec-head"><span class="num">00</span><h2>System context</h2><span class="rule"></span></div>
+  <p class="lede">Three callers, one service, two backing stores, one external system. The Chord teammate is the only caller that can create an order. The admin panel reads, edits and listens. Paystack is only ever called by us; it never calls us. A customer's browser hits one page after paying.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1120 360" width="100%" height="360">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2430"/></marker></defs>
+      <rect x="20" y="30" width="190" height="64" rx="10" fill="#f1eafe" stroke="#1b2430" stroke-width="2"/>
+      <text x="115" y="56" text-anchor="middle" class="b">Chord teammate</text><text x="115" y="76" text-anchor="middle" class="mono">MCP client · tools/call</text>
+      <rect x="20" y="130" width="190" height="64" rx="10" fill="#fdf2df" stroke="#1b2430" stroke-width="2"/>
+      <text x="115" y="156" text-anchor="middle" class="b">Admin panel (Netlify)</text><text x="115" y="176" text-anchor="middle" class="mono">REST + SSE · Bearer JWT</text>
+      <rect x="20" y="230" width="190" height="64" rx="10" fill="#fff" stroke="#1b2430" stroke-width="2"/>
+      <text x="115" y="256" text-anchor="middle" class="b">Customer browser</text><text x="115" y="276" text-anchor="middle" class="mono">GET /paid?ref=…</text>
+      <rect x="340" y="20" width="440" height="320" rx="14" fill="#f0f8f3" stroke="#1b2430" stroke-width="2"/>
+      <text x="560" y="46" text-anchor="middle" class="b" style="font-size:14px">Go service · Railway · 1 replica (2 supported)</text>
+      <rect x="360" y="62" width="200" height="46" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="460" y="81" text-anchor="middle" class="mono">POST /mcp</text><text x="460" y="97" text-anchor="middle" class="k">BEARER MCP TOKEN</text>
+      <rect x="580" y="62" width="180" height="46" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="670" y="81" text-anchor="middle" class="mono">/api/v1/* · /api/v1/events</text><text x="670" y="97" text-anchor="middle" class="k">JWT · CORS · SSE</text>
+      <rect x="360" y="122" width="200" height="46" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="460" y="141" text-anchor="middle" class="mono">reconciler · every 60 s</text><text x="460" y="157" text-anchor="middle" class="k">RE-VERIFIES PENDING</text>
+      <rect x="580" y="122" width="180" height="46" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="670" y="141" text-anchor="middle" class="mono">/healthz · /paid · /metrics</text><text x="670" y="157" text-anchor="middle" class="k">PUBLIC / INTERNAL</text>
+      <rect x="360" y="186" width="400" height="40" rx="8" fill="#dff1e6" stroke="#1b2430" stroke-width="1.5"/><text x="560" y="211" text-anchor="middle" class="b">ordering · payments · reconciler · activity · events</text>
+      <rect x="360" y="244" width="190" height="80" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="455" y="266" text-anchor="middle" class="b">Postgres</text><text x="455" y="284" text-anchor="middle" class="mono">system of record</text><text x="455" y="300" text-anchor="middle" class="mono">orders · stock · log · admins</text><text x="455" y="316" text-anchor="middle" class="k">PGX POOL 8</text>
+      <rect x="570" y="244" width="190" height="80" rx="8" fill="#fdecea" stroke="#b4232c" stroke-width="1.5"/><text x="665" y="266" text-anchor="middle" class="b">Redis</text><text x="665" y="284" text-anchor="middle" class="mono">cache · locks · limits</text><text x="665" y="300" text-anchor="middle" class="mono">idempotency · pub/sub</text><text x="665" y="316" text-anchor="middle" class="k">FAILS OPEN (§07)</text>
+      <rect x="900" y="60" width="200" height="64" rx="10" fill="#e8f0fd" stroke="#1b2430" stroke-width="2"/><text x="1000" y="86" text-anchor="middle" class="b">Paystack (test mode)</text><text x="1000" y="106" text-anchor="middle" class="mono">initialize · verify</text>
+      <rect x="900" y="180" width="200" height="64" rx="10" fill="#fff" stroke="#9aa7b3" stroke-width="2" stroke-dasharray="6 4"/><text x="1000" y="206" text-anchor="middle" class="b" style="fill:#6b7a89">No webhook</text><text x="1000" y="226" text-anchor="middle" class="mono" style="fill:#9aa7b3">shared Paystack account</text>
+      <line x1="210" y1="62" x2="358" y2="85" stroke="#1b2430" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="210" y1="162" x2="578" y2="100" stroke="#1b2430" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="210" y1="262" x2="578" y2="150" stroke="#1b2430" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="780" y1="200" x2="898" y2="100" stroke="#1b2430" stroke-width="2" marker-end="url(#ar)"/>
+            <text x="820" y="140" class="k">HTTPS · 8 s timeout</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s1">
+  <div class="sec-head"><span class="num">01</span><h2>Decision records</h2><span class="rule"></span></div>
+  <p class="lede">Each one is a choice that could have gone another way. The "revisit when" column is the trigger for reopening it, so nobody has to re-argue it until the trigger fires.</p>
+  <div class="card">
+    <div class="adr"><h4><span class="tag t-adr">ADR-1</span> Postgres is the system of record; Redis is never the only copy of anything</h4><p><b>Why:</b> stock and money need row locks, unique constraints and a transaction that either moves a portion and marks an order paid or does neither. Redis holds derived or ephemeral state only: a cache that can be rebuilt, a lock that can expire, a counter that can reset, an event that can be missed and recovered by a refetch.</p><p><b>Consequence:</b> Redis outage degrades latency and liveness of the board, never correctness. <b>Revisit when:</b> never for this product.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-2</span> Redis is in from day one, with every use fail-open</h4><p><b>Why:</b> the vendor's board should feel live, a second replica should not double-serve a stale menu, login brute force should be rate limited across replicas, and admin writes should be safely retryable. Each is a Redis idiom. Putting it in now also exercises the deployment path under test conditions, which is the point of the exercise.</p><p><b>Consequence:</b> an abstraction (<code>cache.Store</code>, <code>locks.Locker</code>, <code>events.Bus</code>) with a Redis implementation and an in-process fallback. <b>Revisit when:</b> a second replica is added (then the fallback must be disabled for locks).</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-3</span> Verify and confirm are separate tools; confirm re-verifies</h4><p><b>Why:</b> the conversation needs a "Paystack said yes" moment before stock moves, and reviewers should see two actions. A model may skip the first call, so the second never trusts it. <b>Revisit when:</b> telemetry shows the model skipping <code>confirm_order</code> after a successful verify more than 5% of the time; then fold them.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-4</span> Stock is reserved at confirm, not at link creation</h4><p><b>Why:</b> a reservation at link time needs a release path for abandoned links and turns every "just checking the price" into a hold. A kitchen would rather sell the last portion twice and call one customer than hold it for a link that never pays. The <code>paid_needs_attention</code> state and the vendor's phone are the release path. <b>Revisit when:</b> needs-attention exceeds 2% of paid orders.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-5</span> No Paystack webhook. Verify is the only source of payment truth; a reconciler polls for what the customer never reported</h4><p><b>Why:</b> the Paystack account is shared across several projects, so a webhook URL cannot be pointed at this service. That turns out to be the better design anyway: <code>verify_payment</code> and <code>confirm_order</code> each call <code>GET /transaction/verify/:reference</code> and read status, amount and currency from Paystack directly, so there is no signed-payload path to protect and no second source of truth. A customer who pays and closes WhatsApp without saying "paid" is caught by the reconciler, which re-verifies pending orders with a reference every 60 s and confirms the paid ones.</p><p><b>Consequence:</b> confirmation lags a silent payment by up to ~3 minutes instead of being instant. No <code>webhook_events</code> table, no HMAC code, no inbound route from Paystack. <b>Revisit when:</b> this vendor gets a dedicated Paystack account; then a webhook can be added as an accelerator that calls the same <code>ConfirmOrder</code>.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-6</span> Status columns are text + CHECK, not Postgres enums; ids are text slugs for menu, ULIDs for orders</h4><p><b>Why:</b> adding a status is a migration that edits a constraint, not an <code>ALTER TYPE</code> that cannot run in a transaction. Menu ids are human (<code>jollof</code>) because the model reads them. Order ids are ULIDs because they sort and are unguessable; <code>order_no</code> is the human handle.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-7</span> Hand-written SQL, no ORM; goose for migrations, embedded</h4><p><b>Why:</b> under 30 queries, every one of which benefits from being readable in a review. Embedded migrations mean the binary is the deploy unit. <b>Revisit when:</b> query count passes ~80 or a second service shares the schema (then sqlc).</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-8</span> Stateless MCP transport, bearer auth, no OAuth</h4><p><b>Why:</b> Chord supports static bearer; OAuth needs dynamic client registration and an allowlisted redirect, which is a day on its own. Stateless means any replica answers any message. <b>Revisit when:</b> a second tenant needs its own credentials.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-9</span> Separate deployables, same repo, no root build files</h4><p><b>Why:</b> the backend is Go and deploys to Railway from <code>/backend</code>; the frontend is Vite and deploys to Netlify from <code>/frontend</code>. Neither needs to know the other exists at build time. Root holds <code>README.md</code>, <code>.gitignore</code> and <code>docs/</code> only. No Nx, no root <code>package.json</code>, no root Dockerfile.</p></div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s2">
+  <div class="sec-head"><span class="num">02</span><h2>Boundaries and trust</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Layers</h3>
+      <table>
+        <thead><tr><th style="width:24%">Layer</th><th>Knows about</th><th style="width:30%">Never sees</th></tr></thead>
+        <tbody>
+          <tr><td><b>Transport</b><br><code>httpapi</code>, <code>mcpserver</code></td><td>Gin, JSON-RPC, SSE, headers, auth, CORS, the envelope</td><td>SQL, Redis commands, Paystack HTTP</td></tr>
+          <tr><td><b>Domain</b><br><code>ordering</code>, <code>payments</code>, <code>reconcile</code></td><td>Menus, windows, carts, orders, stock, references, outcomes. Returns typed results and <code>*DomainError</code></td><td><code>*gin.Context</code>, <code>*http.Request</code>, JSON-RPC, <code>redis.Client</code></td></tr>
+          <tr><td><b>Ports</b><br><code>store</code>, <code>paystack</code>, <code>cache</code>, <code>locks</code>, <code>events</code>, <code>ratelimit</code></td><td>Postgres in transactions; Paystack REST; Redis commands behind small interfaces</td><td>Business rules</td></tr>
+          <tr><td><b>Cross-cutting</b><br><code>money</code>, <code>clock</code>, <code>activity</code>, <code>config</code>, <code>telemetry</code></td><td>Kobo; WAT; tool-call log; env; metrics and log fields</td><td>Everything else</td></tr>
+        </tbody>
+      </table>
+      <p>The MCP tools and the REST handlers are two transports over the same <code>ordering.Service</code>. The reconciler is a third caller of the same <code>ConfirmOrder</code>.</p>
+    </div>
+    <div class="card">
+      <h3>What is trusted</h3>
+      <table>
+        <thead><tr><th style="width:34%">Input</th><th>Trust</th></tr></thead>
+        <tbody>
+          <tr><td>Model tool arguments</td><td><b>Untrusted.</b> Item ids looked up, quantities re-checked, totals recomputed, references matched to orders. The model cannot set a price, a status or a count.</td></tr>
+          <tr><td>Paystack verify response</td><td><b>Trusted after</b> status, amount and currency all match the order.</td></tr>
+                    <tr><td>Redis contents</td><td><b>Advisory.</b> A cache hit is served; a lock is a hint that shortens contention; Postgres constraints remain the guarantee.</td></tr>
+          <tr><td>Admin JWT</td><td>Trusted after signature, expiry and <code>jti</code> not in the Redis revocation set.</td></tr>
+          <tr><td>Chord's bearer on <code>/mcp</code></td><td>Constant-time compare. No bearer, no tools.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s3">
+  <div class="sec-head"><span class="num">03</span><h2>Repository and package layout</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Repo root (nothing else)</h3>
+      <pre class="code">chat-to-order/
+  README.md             what this is, links, how AI was used
+  .gitignore
+  docs/                 plan, specs, brief, chord docs, field notes, go-live
+  backend/              Go service (this document)
+  frontend/             Vite app (tech-spec-web.html)</pre>
+      <h3 style="margin-top:14px"><code>backend/</code></h3>
+      <pre class="code">backend/
+  go.mod go.sum
+  Dockerfile  .dockerignore  .env.example  Makefile
+  railway.json                     build + healthcheck config, lives here not at root
+  cmd/server/main.go               config → pg → redis → migrate → wire → serve
+  internal/
+    config/                        env → Config; boot fails on a missing key
+    money/  clock/                 Kobo; Africa/Lagos; Window()
+    store/                         pgxpool, tx helper, one file per aggregate
+      migrations/*.sql             embedded; goose
+    cache/                         Store iface; redis + memory impls; single-flight
+    locks/                         Locker iface; redis SET NX PX + memory impl
+    ratelimit/                     Limiter iface; redis fixed-window + memory impl
+    idempotency/                   admin write replay (Idempotency-Key)
+    events/                        Bus iface; redis pub/sub + memory; SSE fan-out
+    ordering/                      the domain (menu, create, verify, confirm, resolve, cancel)
+    payments/paystack/             Client iface; http client; fake; signature
+    reconcile/                     ticker: expire + re-verify pending
+    activity/                      tool_calls writer + masking
+    telemetry/                     slog setup, prometheus registry, request ids
+    mcpserver/                     tool registration, auth, activity wrapping
+    httpapi/                       router, middleware, handlers, envelope, sse
+  skill/food-vendor/               SKILL.md + references (zipped for Chord by `make skill`)
+  scripts/chord/                   01-register.sh 02-usage.sh (read env, never store keys)</pre>
+    </div>
+    <div class="card">
+      <h3>Dependencies, pinned on day one</h3>
+      <table>
+        <thead><tr><th style="width:46%">Module</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>github.com/gin-gonic/gin</code></td><td>Router, middleware, binding</td></tr>
+          <tr><td><code>github.com/modelcontextprotocol/go-sdk/mcp</code></td><td>MCP server, Streamable HTTP, typed tools → JSON schema</td></tr>
+          <tr><td><code>github.com/jackc/pgx/v5</code> + <code>pgxpool</code></td><td>Postgres, native transactions</td></tr>
+          <tr><td><code>github.com/pressly/goose/v3</code></td><td>Embedded migrations</td></tr>
+          <tr><td><code>github.com/redis/go-redis/v9</code></td><td>Cache, locks, limits, pub/sub</td></tr>
+          <tr><td><code>github.com/golang-jwt/jwt/v5</code>, <code>golang.org/x/crypto/bcrypt</code></td><td>Admin auth</td></tr>
+          <tr><td><code>github.com/prometheus/client_golang</code></td><td><code>/metrics</code></td></tr>
+          <tr><td><code>github.com/oklog/ulid/v2</code></td><td>Order ids</td></tr>
+          <tr><td>stdlib <code>log/slog</code>, <code>net/http</code>, <code>time/tzdata</code></td><td>Logs, Paystack, Lagos tz inside distroless</td></tr>
+        </tbody>
+      </table>
+      <h4>Makefile targets</h4>
+      <pre class="code">make dev        # docker compose up pg+redis, go run with PAYSTACK_FAKE=1
+make test       # go vet + go test ./... (needs TEST_DATABASE_URL, TEST_REDIS_URL)
+make skill      # zip skill/food-vendor → dist/food-vendor.zip
+make smoke      # curl the MCP endpoint through the four tools with the fake</pre>
+      <p><code>backend/docker-compose.yml</code> brings up Postgres 17 and Redis 7 for local work. It is inside <code>backend/</code>; the frontend does not need it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s4">
+  <div class="sec-head"><span class="num">04</span><h2>Data model</h2><span class="rule"></span></div>
+  <p class="lede">Nine tables. Money is <code>bigint</code> kobo. Times are <code>timestamptz</code>. Status columns are text + CHECK (ADR-6). Postgres is the only place an order, a portion count or a confirmation exists.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1120 300" width="100%" height="300">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2430"/></marker></defs>
+      <g><rect x="20" y="30" width="200" height="98" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="120" y="50" text-anchor="middle" class="b">menu_items</text><text x="30" y="70" class="mono">id text PK</text><text x="30" y="86" class="mono">price_kobo bigint</text><text x="30" y="102" class="mono">portions int ≥ 0</text><text x="30" y="118" class="mono">available bool · window</text></g>
+      <g><rect x="20" y="160" width="200" height="70" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="120" y="180" text-anchor="middle" class="b">delivery_zones</text><text x="30" y="200" class="mono">id text PK · name</text><text x="30" y="216" class="mono">fee_kobo · active · sort</text></g>
+      <g><rect x="20" y="250" width="200" height="40" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="120" y="275" text-anchor="middle" class="b">vendor_settings (1 row)</text></g>
+      <g><rect x="330" y="30" width="240" height="150" rx="8" fill="#dff1e6" stroke="#1b2430" stroke-width="2"/><text x="450" y="50" text-anchor="middle" class="b">orders</text><text x="340" y="70" class="mono">id ulid PK · order_no UNIQUE</text><text x="340" y="86" class="mono">status · reference UNIQUE</text><text x="340" y="102" class="mono">cart_hash (partial UNIQUE)</text><text x="340" y="118" class="mono">subtotal/delivery/total_kobo</text><text x="340" y="134" class="mono">fulfilment · zone_id FK · address</text><text x="340" y="150" class="mono">paid_at · ready_by · attention_reason</text><text x="340" y="166" class="mono">expires_at · reconciled_at</text></g>
+      <g><rect x="330" y="210" width="240" height="80" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="450" y="230" text-anchor="middle" class="b">order_lines</text><text x="340" y="250" class="mono">order_id FK · item_id FK</text><text x="340" y="266" class="mono">name_snapshot · unit_price_kobo</text><text x="340" y="282" class="mono">qty · line_kobo</text></g>
+      <g><rect x="660" y="30" width="200" height="80" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="760" y="50" text-anchor="middle" class="b">payment_checks</text><text x="670" y="70" class="mono">order_id FK · reference · source</text><text x="670" y="86" class="mono">paystack_status · amount_kobo</text><text x="670" y="102" class="mono">outcome · raw jsonb</text></g>
+            <g><rect x="660" y="214" width="200" height="64" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="760" y="234" text-anchor="middle" class="b">order_events</text><text x="670" y="254" class="mono">order_id · type · actor · data</text><text x="670" y="270" class="mono">created_at (append-only)</text></g>
+      <g><rect x="920" y="30" width="180" height="80" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="1010" y="50" text-anchor="middle" class="b">tool_calls</text><text x="930" y="70" class="mono">tool · args · result jsonb</text><text x="930" y="86" class="mono">ok · error_code · latency_ms</text><text x="930" y="102" class="mono">order_no · request_id</text></g>
+      <g><rect x="920" y="130" width="180" height="64" rx="8" fill="#fff" stroke="#1b2430" stroke-width="2"/><text x="1010" y="150" text-anchor="middle" class="b">admins</text><text x="930" y="170" class="mono">email UNIQUE · name</text><text x="930" y="186" class="mono">password_hash</text></g>
+      <line x1="330" y1="140" x2="222" y2="190" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line x1="450" y1="210" x2="450" y2="182" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line x1="330" y1="250" x2="222" y2="90" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line x1="660" y1="70" x2="572" y2="90" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar2)"/>
+      <line x1="660" y1="246" x2="572" y2="150" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar2)"/>
+            <line x1="920" y1="90" x2="572" y2="100" stroke="#1b2430" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar2)"/>
+    </svg>
+  </div>
+
+  <div class="card">
+    <h3>DDL (the shape; <code>0001_schema.sql</code> is the source of truth)</h3>
+    <pre class="code">CREATE TABLE vendor_settings (
+  id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  vendor_name text NOT NULL, pickup_address text NOT NULL, rider_phone text NOT NULL DEFAULT '',
+  order_prefix text NOT NULL DEFAULT 'IBK',
+  prep_minutes int NOT NULL DEFAULT 40 CHECK (prep_minutes BETWEEN 5 AND 240),
+  lunch_open time NOT NULL, lunch_close time NOT NULL, lunch_orders_close time NOT NULL,
+  evening_open time NOT NULL, evening_close time NOT NULL, evening_orders_close time NOT NULL,
+  pending_ttl_minutes int NOT NULL DEFAULT 30,
+  low_stock_threshold int NOT NULL DEFAULT 3,
+  version int NOT NULL DEFAULT 1,                      -- optimistic concurrency for PUT
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE menu_items (
+  id text PRIMARY KEY CHECK (id ~ '^[a-z0-9-]{2,24}$'),
+  name text NOT NULL, description text NOT NULL DEFAULT '',
+  price_kobo bigint NOT NULL CHECK (price_kobo > 0),
+  portions int NOT NULL CHECK (portions >= 0),
+  available boolean NOT NULL DEFAULT true,
+  window text NOT NULL CHECK (window IN ('lunch','evening','all')),
+  sort int NOT NULL DEFAULT 100, photo_url text,
+  version int NOT NULL DEFAULT 1,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE delivery_zones (
+  id text PRIMARY KEY CHECK (id ~ '^[a-z0-9-]{2,24}$'), name text NOT NULL,
+  fee_kobo bigint NOT NULL CHECK (fee_kobo >= 0), active boolean NOT NULL DEFAULT true, sort int NOT NULL DEFAULT 100
+);
+
+CREATE SEQUENCE order_no_seq START 231;
+
+CREATE TABLE orders (
+  id text PRIMARY KEY, order_no text NOT NULL UNIQUE,
+  status text NOT NULL CHECK (status IN
+    ('pending_payment','paid','paid_needs_attention','resolved','cancelled','expired')),
+  customer_name text NOT NULL, phone text, note text,
+  fulfilment text NOT NULL CHECK (fulfilment IN ('delivery','pickup')),
+  zone_id text REFERENCES delivery_zones(id), address text,
+  window text NOT NULL CHECK (window IN ('lunch','evening')),
+  subtotal_kobo bigint NOT NULL, delivery_fee_kobo bigint NOT NULL, total_kobo bigint NOT NULL,
+  reference text UNIQUE, authorization_url text, cart_hash text,
+  source text NOT NULL DEFAULT 'mcp' CHECK (source IN ('mcp','admin')),
+  paid_at timestamptz, ready_by timestamptz, confirmed_by text,   -- 'mcp' | 'reconciler'
+  attention_reason text, resolved_at timestamptz, resolution_note text,
+  expires_at timestamptz NOT NULL, reconciled_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX orders_open_cart ON orders (cart_hash) WHERE status = 'pending_payment';
+CREATE INDEX orders_status_created ON orders (status, created_at DESC);
+CREATE INDEX orders_pending_ref ON orders (created_at) WHERE status = 'pending_payment' AND reference IS NOT NULL;
+
+CREATE TABLE order_lines (
+  id bigserial PRIMARY KEY, order_id text NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  item_id text NOT NULL REFERENCES menu_items(id), name_snapshot text NOT NULL,
+  unit_price_kobo bigint NOT NULL, qty int NOT NULL CHECK (qty > 0), line_kobo bigint NOT NULL
+);
+
+CREATE TABLE order_events (                                -- append-only audit trail per order
+  id bigserial PRIMARY KEY, order_id text NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  type text NOT NULL,                                      -- created | link_issued | verified | confirmed | needs_attention | resolved | cancelled | expired
+  actor text NOT NULL,                                     -- mcp | reconciler | admin:&lt;id&gt; | system
+  data jsonb NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE payment_checks (
+  id bigserial PRIMARY KEY, order_id text REFERENCES orders(id), reference text NOT NULL,
+  source text NOT NULL, paystack_status text, amount_kobo bigint, currency text, gateway_response text,
+  outcome text NOT NULL, latency_ms int, raw jsonb, checked_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE tool_calls (
+  id bigserial PRIMARY KEY, tool text NOT NULL, args jsonb NOT NULL, result jsonb,
+  ok boolean NOT NULL, error_code text, latency_ms int NOT NULL, order_no text, request_id text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX tool_calls_created ON tool_calls (created_at DESC);
+
+CREATE TABLE admins (
+  id text PRIMARY KEY, email text NOT NULL UNIQUE, name text NOT NULL,
+  password_hash text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now()
+);</pre>
+    <h4>Invariants the schema enforces</h4>
+    <ul class="clean">
+      <li><b>No negative stock:</b> <code>portions >= 0</code> is the last line of defence under the lock.</li>
+      <li><b>One Paystack reference, one order:</b> <code>reference UNIQUE</code>.</li>
+      <li><b>One open order per identical cart:</b> the partial unique index on <code>cart_hash</code> survives a race the Redis lock might miss.</li>
+      <li><b>Optimistic concurrency on vendor-edited rows:</b> <code>version</code> on settings and items; a stale PUT/PATCH gets 409.</li>
+    </ul>
+    <h4>Retention</h4>
+    <p><code>tool_calls</code> and <code>payment_checks</code> are pruned to 90 days by the reconciler's nightly pass. Orders and <code>order_events</code> are kept. Customer phone and address are masked in <code>tool_calls.args</code> at write time.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s5">
+  <div class="sec-head"><span class="num">05</span><h2>Migrations and the seed</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Boot sequence</h3>
+      <ol class="clean">
+        <li><code>config.Load()</code> fails fast on any missing variable and refuses <code>PAYSTACK_FAKE=1</code> alongside a live-looking key in release mode.</li>
+        <li><code>pgxpool.New</code>, ping 5 s. <code>redis.NewClient</code>, ping 2 s; on failure log WARN and start in <b>degraded mode</b> (§07), do not exit.</li>
+        <li>Take the Redis lock <code>migrate:lock</code> (PX 120000) so two replicas booting together do not race goose; fall through if Redis is down (goose uses its own table lock anyway).</li>
+        <li><code>goose.Up</code> over embedded <code>migrations/</code>.</li>
+        <li>Admin password bootstrap (once). Warm the menu cache. Start the reconciler. Mount routes. Listen.</li>
+        <li><code>/healthz</code> reports <code>ready:false</code> until step 5 completes, so Railway does not route traffic to a half-migrated instance.</li>
+      </ol>
+      <h4>Files</h4>
+      <pre class="code">migrations/
+  0001_schema.sql            §04
+  0002_seed_menu.sql         settings row, 3 zones, 8 items   ← the default menu
+  0003_seed_admin.sql        admin row with empty hash; hash set from env at boot
+  0004_seed_demo_orders.sql  6 orders for the board; applied only when SEED_DEMO_ORDERS=1</pre>
+      <div class="note warn"><b>Admin password never lives in a migration.</b> <code>0003</code> inserts email and name; at boot, if <code>ADMIN_PASSWORD</code> is set and the hash is empty, the server bcrypts it once.</div>
+    </div>
+    <div class="card">
+      <h3><code>0002_seed_menu.sql</code></h3>
+      <pre class="code">INSERT INTO vendor_settings (vendor_name, pickup_address, rider_phone, order_prefix, prep_minutes,
+  lunch_open, lunch_close, lunch_orders_close, evening_open, evening_close, evening_orders_close)
+VALUES ('Iya Bisi''s Kitchen', '14 Adelabu Street, Surulere, Lagos', '0801 000 0000', 'IBK', 40,
+  '11:00','15:00','14:30','17:00','20:30','20:00');
+
+INSERT INTO delivery_zones (id, name, fee_kobo, sort) VALUES
+  ('surulere','Surulere', 70000,1), ('yaba','Yaba',120000,2), ('ikeja','Ikeja',180000,3);
+
+INSERT INTO menu_items (id, name, price_kobo, portions, window, sort) VALUES
+  ('jollof',  'Jollof rice & chicken', 350000, 20, 'lunch',   1),
+  ('fried',   'Fried rice & chicken',  350000, 15, 'lunch',   2),
+  ('ofada',   'Ofada rice & ayamase',  400000,  2, 'lunch',   3),   -- low on purpose
+  ('beans',   'Beans & plantain',      250000, 12, 'all',     4),
+  ('moimoi',  'Moi moi',                80000, 30, 'all',     5),
+  ('egusi',   'Egusi & pounded yam',   450000, 10, 'evening', 6),
+  ('chapman', 'Chapman',               100000, 25, 'all',     7),
+  ('water',   'Bottled water',          30000, 40, 'all',     8);</pre>
+      <p><b>Demo reset</b> (<code>POST /api/v1/admin/reset</code>): inside one transaction truncate <code>orders</code> (cascades), <code>payment_checks</code>, <code>tool_calls</code>; <code>ALTER SEQUENCE order_no_seq RESTART 231</code>; upsert items back to seed portions; re-run 0004's body. Then <code>DEL</code> the menu cache and publish <code>reset</code> on the event bus so every open board refetches. Settings edits and admins are untouched.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s6">
+  <div class="sec-head"><span class="num">06</span><h2>Domain rules</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Windows, offers, numbers</h3>
+      <pre class="code">func Window(s Settings, now time.Time) (name string, ordersOpen bool, closesAt, next time.Time)
+lunch:   open 11:00 · orders close 14:30 · kitchen close 15:00
+evening: open 17:00 · orders close 20:00 · kitchen close 20:30
+closed:  otherwise → next = next opening today or tomorrow</pre>
+      <ul class="clean">
+        <li>Time is <code>clock.Now()</code> in <code>Africa/Lagos</code>, injectable in tests.</li>
+        <li>An item is <b>offered</b> when <code>available</code> ∧ <code>portions > 0</code> ∧ <code>window ∈ {current, all}</code>.</li>
+        <li>An order's <code>window</code> is stamped at creation.</li>
+      </ul>
+      <pre class="code">order_no  = prefix "-" zero-pad4(nextval)         IBK-0231
+reference = order_no "-" 4 random hex              IBK-0231-a1b2
+cart_hash = sha256(lower(trim(name)) | sorted "item:qty" lines | fulfilment | zone | normalised address)
+ready_by  = paid_at + prep_minutes, ceil to 5 min, label "13:25" WAT</pre>
+    </div>
+    <div class="card">
+      <h3>Order status machine</h3>
+      <div class="diagram" style="box-shadow:none;border-width:1.5px;border-color:var(--line-2)">
+        <svg viewBox="0 0 520 200" width="100%" height="200">
+          <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2430"/></marker></defs>
+          <rect x="10" y="70" width="130" height="40" rx="8" fill="#fdf2df" stroke="#1b2430" stroke-width="1.5"/><text x="75" y="95" text-anchor="middle" class="mono">pending_payment</text>
+          <rect x="200" y="20" width="110" height="40" rx="8" fill="#e3f4ea" stroke="#1b2430" stroke-width="1.5"/><text x="255" y="45" text-anchor="middle" class="mono">paid</text>
+          <rect x="200" y="80" width="150" height="40" rx="8" fill="#fde9e9" stroke="#1b2430" stroke-width="1.5"/><text x="275" y="105" text-anchor="middle" class="mono">paid_needs_attention</text>
+          <rect x="400" y="80" width="100" height="40" rx="8" fill="#e3f4ea" stroke="#1b2430" stroke-width="1.5"/><text x="450" y="105" text-anchor="middle" class="mono">resolved</text>
+          <rect x="200" y="140" width="100" height="36" rx="8" fill="#f3f1ea" stroke="#1b2430" stroke-width="1.5"/><text x="250" y="163" text-anchor="middle" class="mono">cancelled</text>
+          <rect x="320" y="140" width="100" height="36" rx="8" fill="#f3f1ea" stroke="#1b2430" stroke-width="1.5"/><text x="370" y="163" text-anchor="middle" class="mono">expired</text>
+          <line x1="140" y1="80" x2="198" y2="45" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar3)"/>
+          <line x1="140" y1="95" x2="198" y2="100" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar3)"/>
+          <line x1="350" y1="100" x2="398" y2="100" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar3)"/>
+          <line x1="120" y1="110" x2="198" y2="155" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar3)"/>
+          <line x1="140" y1="110" x2="318" y2="155" stroke="#1b2430" stroke-width="1.5" marker-end="url(#ar3)"/>
+          <path d="M370,140 C370,120 300,70 312,60" fill="none" stroke="#1b2430" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar3)"/>
+          <text x="150" y="52" class="k">confirm · stock ok</text>
+          <text x="140" y="123" class="k">confirm · stock short</text>
+          <text x="352" y="92" class="k">admin</text>
+          <text x="150" y="178" class="k">admin</text>
+          <text x="236" y="135" class="k">reconciler · TTL</text>
+          <text x="372" y="118" class="k">late pay, reconciler</text>
+        </svg>
+      </div>
+      <table>
+        <thead><tr><th style="width:36%">Transition</th><th style="width:22%">Actor</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>pending → paid</td><td>confirm (mcp, reconciler)</td><td>Verified success, amount and currency match, all lines in stock, decremented in the same tx</td></tr>
+          <tr><td>pending → paid_needs_attention</td><td>confirm</td><td>Verified success, some line short. <b>No decrement.</b></td></tr>
+          <tr><td>expired → paid / needs_attention</td><td>reconciler, confirm</td><td>A late payment is still a payment; expired is a board hint, not a refusal</td></tr>
+          <tr><td>needs_attention → resolved</td><td>admin</td><td>With a note; stock untouched by the system</td></tr>
+          <tr><td>pending → cancelled</td><td>admin</td><td>Only while unpaid</td></tr>
+          <tr><td>pending → expired</td><td>reconciler</td><td><code>expires_at &lt; now</code> and last verify not success</td></tr>
+          <tr><td>paid, resolved, cancelled → *</td><td>nobody</td><td>Terminal</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>The two transactions that matter</h3>
+    <div class="grid g2">
+      <div>
+        <h4 style="margin-top:0"><code>CreateOrder</code> (sequence)</h4>
+        <pre class="code"> 1. settings, menu ← cache.Get("menu:v1")  (Redis → memory → DB, §07)
+ 2. window check                        → window_closed
+ 3. each line: offered? qty ≤ portions? → item_unknown | item_unavailable{max_qty}
+ 4. zone/address rules                  → zone_required | address_required
+ 5. totals in kobo
+ 6. cart_hash
+ 7. lock ← locks.Acquire("cart:"+hash, 10 s)   advisory; skip if Redis down
+ 8. BEGIN
+      SELECT … WHERE cart_hash=$1 AND status='pending_payment'
+        hit, not expired → COMMIT, release, return reused=true
+      order_no ← nextval; INSERT orders(status='pending_payment', expires_at=now+TTL)
+      INSERT order_lines; INSERT order_events(created)
+    COMMIT
+ 9. Paystack initialize (8 s)
+      ErrUnavailable / Rejected → UPDATE status='cancelled', order_events(init_failed); return error
+      ok → UPDATE reference, authorization_url; order_events(link_issued)
+10. release lock; events.Publish(order.created); return</pre>
+        <p>Step 3 is a soft check against the cache. Stock is reserved only at confirm (ADR-4). Between 8 and 9 there is an order with no reference for up to 8 s; the reconciler cancels any such order older than 2 minutes (a crash between the two steps).</p>
+      </div>
+      <div>
+        <h4 style="margin-top:0"><code>ConfirmOrder(ref, actor)</code> (sequence)</h4>
+        <pre class="code"> 1. order ← by reference                → unknown_reference
+ 2. terminal already? return it, already_confirmed=true
+ 3. lock ← locks.Acquire("confirm:"+ref, 20 s)
+      held by another caller → wait up to 3 s then re-read step 2
+ 4. verify ← Paystack verify (8 s)      outside any tx
+    INSERT payment_checks(source=actor)  always
+    outcome ≠ success → release; return outcome
+ 5. BEGIN
+      SELECT * FROM orders WHERE id=$1 FOR UPDATE
+      terminal now? COMMIT; return already_confirmed
+      SELECT id, portions FROM menu_items WHERE id = ANY($ids) ORDER BY id FOR UPDATE
+      short := lines where portions &lt; qty
+      none short:
+        UPDATE menu_items SET portions = portions - qty, version = version + 1 …
+        UPDATE orders SET status='paid', paid_at, ready_by, confirmed_by=actor
+        INSERT order_events(confirmed)
+      else:
+        UPDATE orders SET status='paid_needs_attention', paid_at, attention_reason, confirmed_by
+        INSERT order_events(needs_attention)
+    COMMIT
+ 6. cache.Del("menu:v1"); events.Publish(order.updated, menu.updated)
+ 7. release lock; return</pre>
+        <p>The Redis lock shortens contention; the <code>FOR UPDATE</code> is the guarantee. Two actors can call this (model, reconciler) and exactly one decrement happens.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s7">
+  <div class="sec-head"><span class="num">07</span><h2>Redis: what it holds, and what happens without it</h2><span class="rule"></span></div>
+  <p class="lede">Six uses, each behind a small interface with a Redis implementation and an in-process fallback. Every use <b>fails open</b>: when Redis is unreachable the service keeps serving with weaker guarantees and logs it, because the strong guarantees live in Postgres (ADR-1).</p>
+  <div class="card">
+    <table>
+      <thead><tr><th style="width:15%">Use</th><th style="width:30%">Keys and commands</th><th style="width:30%">Why Redis</th><th>Without Redis</th></tr></thead>
+      <tbody>
+        <tr><td><b>Menu cache</b></td><td><code>menu:v1</code> → JSON {settings, items, zones}. <code>GET</code> / <code>SET EX 5</code> / <code>DEL</code> on every write and confirm.</td><td>Shared across replicas; one invalidation reaches all.</td><td>In-process cache with the same TTL. Two replicas could serve 5 s-stale counts; soft check only.</td></tr>
+        <tr><td><b>Locks</b></td><td><code>lock:confirm:{ref}</code>, <code>lock:cart:{hash}</code>, <code>migrate:lock</code>. <code>SET NX PX</code>, release via compare-and-delete Lua.</td><td>Serialises confirm across replicas and actors before the DB lock, so the second caller waits instead of blocking a connection.</td><td>Process-local mutex map. Correctness still from <code>FOR UPDATE</code> and unique indexes.</td></tr>
+        <tr><td><b>Rate limits</b></td><td><code>rl:login:{ip}</code>, <code>rl:paid:{ip}</code>, <code>rl:mcp</code>. <code>INCR</code> + <code>EXPIRE</code> fixed window; Lua for atomicity.</td><td>Brute-force protection must count across replicas.</td><td>In-process limiter per replica (N× looser). Logged WARN.</td></tr>
+        <tr><td><b>Idempotency</b></td><td><code>idem:{admin_id}:{Idempotency-Key}</code> → {status, body hash, body}. <code>SET NX EX 86400</code>.</td><td>Admin POST/PUT/PATCH replay the stored response on retry; a different body with the same key is 422.</td><td>Header ignored; writes are still safe because they are version-checked (409 on stale) and the reset is idempotent by construction.</td></tr>
+        <tr><td><b>Event bus</b></td><td>Channel <code>events</code>; messages <code>{type, order_no?, at}</code>. <code>PUBLISH</code> / <code>SUBSCRIBE</code>.</td><td>Any replica's write reaches every replica's SSE clients.</td><td>In-process bus; only same-replica clients hear it. SSE still sends a 15 s heartbeat and the client's 30 s safety refetch covers the gap.</td></tr>
+        <tr><td><b>JWT revocation</b></td><td><code>jwt:revoked:{jti}</code> <code>SET EX</code> (remaining lifetime). Checked on every admin request.</td><td>Logout and "change password" invalidate live tokens.</td><td>Tokens valid until expiry (24 h). Documented.</td></tr>
+      </tbody>
+    </table>
+    <h4>What is deliberately not in Redis</h4>
+    <ul class="clean">
+      <li><b>Paystack verify results.</b> Never cached. Every <code>verify_payment</code> and every confirm asks Paystack.</li>
+      <li><b>Stock counts as the source of truth.</b> Redis holds a 5 s copy for display and soft checks only.</li>
+      <li><b>Sessions.</b> The JWT is the session.</li>
+      <li><b>Queues.</b> The reconciler is a ticker over Postgres; a job queue would be a fourth system for one job.</li>
+    </ul>
+    <h4>Client settings</h4>
+    <pre class="code">redis.Options{ Addr: cfg.RedisURL, DialTimeout: 2s, ReadTimeout: 300ms, WriteTimeout: 300ms,
+               PoolSize: 10, MinIdleConns: 2, MaxRetries: 1 }
+// every call: ctx with 300 ms deadline; on error → fallback path + metric redis_fallback_total{use}</pre>
+    <div class="note info"><b>Degraded mode is a first-class state.</b> <code>/healthz</code> reports <code>"redis":"degraded"</code> and stays <code>ok:true</code>. The board shows a quiet "live updates paused" chip. Nothing in the money path depends on Redis.</div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s8">
+  <div class="sec-head"><span class="num">08</span><h2>The MCP endpoint</h2><span class="rule"></span></div>
+  <p class="lede">Chord is the MCP client. JSON-RPC 2.0 over Streamable HTTP: one <code>POST /mcp</code> per message, JSON or SSE back. Stateless (ADR-8), so Chord needs no session id and any replica answers.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Wiring</h3>
+      <pre class="code">srv := mcp.NewServer(&amp;mcp.Implementation{Name: "iya-bisi-ordering", Version: build.Version}, nil)
+mcp.AddTool(srv, &amp;mcp.Tool{Name:"get_menu",       Description: d.GetMenu},       activity.Wrap("get_menu",       tools.GetMenu))
+mcp.AddTool(srv, &amp;mcp.Tool{Name:"create_order",   Description: d.CreateOrder},   activity.Wrap("create_order",   tools.CreateOrder))
+mcp.AddTool(srv, &amp;mcp.Tool{Name:"verify_payment", Description: d.VerifyPayment}, activity.Wrap("verify_payment", tools.VerifyPayment))
+mcp.AddTool(srv, &amp;mcp.Tool{Name:"confirm_order",  Description: d.ConfirmOrder},  activity.Wrap("confirm_order",  tools.ConfirmOrder))
+
+h := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv },
+       &amp;mcp.StreamableHTTPOptions{Stateless: true})
+
+r.POST("/mcp", requestID(), mcpBearer(cfg.MCPToken), ratelimit.MCP(), bodyLimit(64&lt;&lt;10), timeout(20*time.Second), gin.WrapH(h))
+r.GET("/mcp",    methodNotAllowed)
+r.DELETE("/mcp", methodNotAllowed)</pre>
+      <ul class="clean">
+        <li>Input structs carry <code>json</code> and <code>jsonschema</code> tags; the SDK generates <code>inputSchema</code>, which is what Chord's tools probe shows.</li>
+        <li>Tool descriptions live in <code>mcpserver/descriptions.go</code> and say when to call the tool and what to do with the result; they are part of the prompt the model sees.</li>
+        <li>Chord's request id, if any, is propagated as <code>request_id</code> into <code>tool_calls</code> and logs.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>On the wire</h3>
+      <div class="lab">Request</div>
+      <pre class="code req">POST /mcp HTTP/1.1
+Authorization: Bearer 3f9c…c0de
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2025-06-18
+
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"get_menu","arguments":{}}}</pre>
+      <div class="lab">Response, success</div>
+      <pre class="code res">HTTP/1.1 200 OK
+Content-Type: application/json
+X-Request-ID: req_01J…
+
+{"jsonrpc":"2.0","id":7,"result":{
+  "content":[{"type":"text","text":"{\"vendor_name\":\"Iya Bisi's Kitchen\",…}"}],
+  "structuredContent":{"vendor_name":"Iya Bisi's Kitchen",…},
+  "isError":false}}</pre>
+      <div class="lab">Response, domain error (JSON-RPC success, tool error)</div>
+      <pre class="code err">{"jsonrpc":"2.0","id":8,"result":{
+  "content":[{"type":"text","text":"{\"error\":\"item_unavailable\",\"message\":\"Ofada rice & ayamase has only 1 portion left.\",\"item_id\":\"ofada\",\"max_qty\":1,\"retryable\":false}"}],
+  "isError":true}}</pre>
+      <div class="lab">Transport errors (never reach the model as text)</div>
+      <pre class="code err">401 {"error":{"code":"unauthenticated","message":"Missing or invalid bearer token."}}
+429 {"error":{"code":"rate_limited",…}}   Retry-After: 5
+{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}}</pre>
+    </div>
+  </div>
+  <div class="card quiet">
+    <h3>Handshake Chord performs at registration and on health probes</h3>
+    <pre class="code">→ initialize   {"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"chord",…}}
+← result       {"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"iya-bisi-ordering","version":"…"}}
+→ notifications/initialized
+→ tools/list   {}
+← result       {"tools":[{"name":"get_menu","description":"…","inputSchema":{…}}, ×4]}</pre>
+    <p>A green probe proves bearer, URL and schema. It does not execute a tool. The first real proof is a <code>get_menu</code> row in <code>tool_calls</code>, which is why <code>make smoke</code> exists and runs against the deployed URL too.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s9">
+  <div class="sec-head"><span class="num">09</span><h2>The four tools, exact shapes</h2><span class="rule"></span></div>
+  <p class="lede">Every money field appears twice: <code>*_kobo</code> integer and <code>*_display</code> string. Every response carries <code>next_step</code>, a sentence written for the model. The model never adds, never divides, never decides the kitchen is open.</p>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-mcp">tool</span><code>get_menu</code></div>
+    <p>What is on offer now. Call at the start of every order and again if a few minutes passed. Cache read; no Paystack.</p>
+    <div class="lab">Input</div><pre class="code req">{}</pre>
+    <div class="lab">Output</div>
+    <pre class="code res">{
+  "vendor_name": "Iya Bisi's Kitchen",
+  "now_wat": "12:40",
+  "window": "lunch",                      // lunch | evening | closed
+  "orders_open": true,
+  "orders_close_at": "14:30",
+  "next_window": null,                    // when closed: {"name":"evening","opens_at":"17:00"}
+  "prep_minutes": 40,
+  "items": [
+    {"id":"jollof","name":"Jollof rice & chicken","price_kobo":350000,"price_display":"₦3,500","portions_left":18},
+    {"id":"ofada","name":"Ofada rice & ayamase","price_kobo":400000,"price_display":"₦4,000","portions_left":2},
+    …
+  ],
+  "delivery_zones": [{"id":"surulere","name":"Surulere","fee_kobo":70000,"fee_display":"₦700"}, …],
+  "pickup_address": "14 Adelabu Street, Surulere, Lagos",
+  "next_step": "List items with price_display and portions_left. Ask what they want, delivery or pickup, and a name."
+}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-mcp">tool</span><code>create_order</code></div>
+    <p>Validate, price, create a pending order, create the Paystack transaction, return the link. Idempotent per identical cart for the pending TTL.</p>
+    <div class="lab">Input</div>
+    <pre class="code req">{
+  "customer_name": "Tobi",                          // 1–80 chars
+  "items": [{"item_id":"jollof","qty":2},{"item_id":"chapman","qty":1}],   // 1–12 lines, qty 1–20
+  "fulfilment": "delivery",                         // delivery | pickup
+  "zone_id": "surulere",                            // required for delivery
+  "address": "22 Bode Thomas, Surulere",            // required for delivery, 5–200 chars
+  "phone": "08012345678",                           // optional, normalised to 11 digits
+  "note": "no pepper"                               // optional, ≤ 140 chars
+}</pre>
+    <div class="lab">Output</div>
+    <pre class="code res">{
+  "order_no": "IBK-0231", "reference": "IBK-0231-a1b2",
+  "authorization_url": "https://checkout.paystack.com/x7k2…", "reused": false,
+  "lines": [
+    {"item_id":"jollof","name":"Jollof rice & chicken","qty":2,"unit_display":"₦3,500","line_kobo":700000,"line_display":"₦7,000"},
+    {"item_id":"chapman","name":"Chapman","qty":1,"unit_display":"₦1,000","line_kobo":100000,"line_display":"₦1,000"}],
+  "subtotal_kobo": 800000, "subtotal_display": "₦8,000",
+  "delivery_fee_kobo": 70000, "delivery_fee_display": "₦700",
+  "total_kobo": 870000, "total_display": "₦8,700",
+  "fulfilment": "delivery", "zone": "Surulere", "address": "22 Bode Thomas, Surulere", "window": "lunch",
+  "link_expires_at_wat": "13:11",
+  "next_step": "Repeat the lines and total_display exactly, send authorization_url, and say: tell me 'paid' when done."
+}</pre>
+    <div class="lab">Errors</div>
+    <pre class="code err">{"error":"item_unavailable","message":"Ofada rice & ayamase has only 1 portion left.","item_id":"ofada","max_qty":1,"retryable":false}
+{"error":"item_unknown","message":"No item with id 'ofada rice' on today's menu. Call get_menu for current ids.","item_id":"ofada rice","retryable":false}
+{"error":"window_closed","message":"Lunch orders closed at 14:30. Evening orders open at 17:00.","next_window":{"name":"evening","opens_at":"17:00"},"retryable":false}
+{"error":"zone_required","message":"Delivery needs a zone: Surulere, Yaba or Ikeja.","retryable":false}
+{"error":"address_required","message":"Delivery needs a street address.","retryable":false}
+{"error":"validation","message":"items must have between 1 and 12 lines.","field":"items","retryable":false}
+{"error":"paystack_unavailable","message":"Paystack did not respond within 8 seconds. Nothing was charged. Try again in a minute.","retryable":true}
+{"error":"paystack_rejected","message":"Paystack rejected the transaction: Invalid email address.","retryable":false}
+{"error":"store_unavailable","message":"The ordering system is not responding. Nothing was charged.","retryable":true}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-mcp">tool</span><code>verify_payment</code></div>
+    <p>Ask Paystack about a reference. Records the check. Never changes order status.</p>
+    <div class="lab">Input</div><pre class="code req">{"reference": "IBK-0231-a1b2"}</pre>
+    <div class="lab">Output</div>
+    <pre class="code res">{
+  "reference": "IBK-0231-a1b2", "order_no": "IBK-0231",
+  "outcome": "success",                    // success | not_confirmed | failed | amount_mismatch
+  "paystack_status": "success",
+  "amount_kobo": 870000, "amount_display": "₦8,700",
+  "paid_at": "2026-10-27T11:44:12Z", "gateway_response": "Approved",
+  "order_status": "pending_payment",       // current DB status; 'paid' means the reconciler got there first
+  "next_step": "Call confirm_order with this reference now."
+}
+// not_confirmed → next_step: "Tell the customer it is not confirmed yet (never 'failed'). The link is open until 13:11. Ask them to finish and say paid again."
+// failed        → gateway_response: "Declined: insufficient funds", next_step: "Say the bank's reason plainly and offer a new link via create_order with the same cart."</pre>
+    <div class="lab">Errors</div>
+    <pre class="code err">{"error":"unknown_reference","message":"No order with reference IBK-0231-zzzz.","retryable":false}
+{"error":"paystack_unavailable","message":"Paystack did not respond. Try again in a minute; if the customer paid, the payment is safe and will be picked up.","retryable":true}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-mcp">tool</span><code>confirm_order</code></div>
+    <p>Verify again, reserve stock, mark paid, in one transaction. Idempotent on reference. Same code path as the reconciler.</p>
+    <div class="lab">Input</div><pre class="code req">{"reference": "IBK-0231-a1b2"}</pre>
+    <div class="lab">Output</div>
+    <pre class="code res">{
+  "order_no": "IBK-0231", "status": "paid", "already_confirmed": false, "confirmed_by": "mcp",
+  "customer_name": "Tobi",
+  "lines": [{"name":"Jollof rice & chicken","qty":2},{"name":"Chapman","qty":1}],
+  "total_display": "₦8,700",
+  "fulfilment": "delivery", "zone": "Surulere", "address": "22 Bode Thomas, Surulere",
+  "ready_by_wat": "13:25", "rider_phone": "0801 000 0000",
+  "next_step": "Tell the customer: order IBK-0231 confirmed, ready by about 13:25, the rider will call."
+}
+// stock short:
+{"order_no":"IBK-0231","status":"paid_needs_attention","already_confirmed":false,
+ "attention_reason":"Ofada rice & ayamase: wanted 2, only 1 left",
+ "next_step":"Apologise: payment received but ofada ran out. Iya Bisi will contact them to swap or sort it out. Do not promise a refund."}</pre>
+    <div class="lab">Errors</div>
+    <pre class="code err">{"error":"payment_not_confirmed","message":"Paystack has not recorded this payment yet.","outcome":"not_confirmed","retryable":true}
+{"error":"payment_failed","message":"The bank declined the payment: insufficient funds.","outcome":"failed","retryable":false}
+{"error":"amount_mismatch","message":"Paystack recorded ₦8,000 but the order total is ₦8,700. Flagged for Iya Bisi; not confirmed.","retryable":false}
+{"error":"unknown_reference",…} {"error":"paystack_unavailable",…} {"error":"store_unavailable",…}</pre>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s10">
+  <div class="sec-head"><span class="num">10</span><h2>Paystack and reconciliation</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Client</h3>
+      <pre class="code">type Client interface {
+  Initialize(ctx, InitializeReq) (InitializeRes, error)
+  Verify(ctx, reference string) (VerifyRes, error)
+}
+var ErrUnavailable = errors.New("paystack: unavailable")  // timeout, 5xx, network
+var ErrNotFound    = errors.New("paystack: not found")    // 404 on verify
+type RejectedError struct{ Status int; Message string }   // 4xx with message</pre>
+      <div class="lab">Initialize</div>
+      <pre class="code req">POST https://api.paystack.co/transaction/initialize
+Authorization: Bearer sk_test_…
+{"email":"orders+ibk-0231@iyabisi.example","amount":870000,"currency":"NGN","reference":"IBK-0231-a1b2",
+ "callback_url":"https://&lt;railway&gt;/paid?ref=IBK-0231-a1b2",
+ "metadata":{"order_no":"IBK-0231","custom_fields":[{"display_name":"Order","variable_name":"order_no","value":"IBK-0231"}]}}</pre>
+      <pre class="code res">{"status":true,"data":{"authorization_url":"https://checkout.paystack.com/x7k2…","access_code":"x7k2…","reference":"IBK-0231-a1b2"}}</pre>
+      <div class="lab">Verify</div>
+      <pre class="code req">GET https://api.paystack.co/transaction/verify/IBK-0231-a1b2</pre>
+      <pre class="code res">{"status":true,"data":{"status":"success","reference":"IBK-0231-a1b2","amount":870000,"currency":"NGN",
+ "gateway_response":"Approved","paid_at":"2026-10-27T11:44:12.000Z","channel":"card",…}}</pre>
+      <table>
+        <thead><tr><th style="width:46%">Paystack <code>data.status</code></th><th>Our <code>outcome</code></th></tr></thead>
+        <tbody>
+          <tr><td><code>success</code> ∧ amount == total ∧ currency == NGN</td><td><code>success</code></td></tr>
+          <tr><td><code>success</code>, amount or currency differs</td><td><code>amount_mismatch</code></td></tr>
+          <tr><td><code>abandoned · pending · ongoing · processing · queued</code></td><td><code>not_confirmed</code></td></tr>
+          <tr><td><code>failed · reversed</code></td><td><code>failed</code></td></tr>
+          <tr><td>HTTP 404</td><td><code>unknown_reference</code></td></tr>
+          <tr><td>anything else</td><td><code>not_confirmed</code> + WARN with the raw status</td></tr>
+        </tbody>
+      </table>
+      <p>Timeouts 8 s. One retry on a network error for verify (idempotent); none for initialize (may have created the transaction). <b>Fake client</b> (<code>PAYSTACK_FAKE=1</code>): initialize links to our own <code>/paid?ref=…&amp;fake=1</code>; verify is success once that page was visited, abandoned before, failed for totals ending in 99.</p>
+    </div>
+    <div class="card">
+      <h3>Why there is no webhook</h3>
+      <p>The Paystack account behind <code>sk_test_…</code> is shared by several projects, so its single webhook URL cannot point here. The design does not need it: every decision about money is made by calling <code>GET /transaction/verify/:reference</code> at the moment of the decision. The model's "paid" triggers a verify; <code>confirm_order</code> verifies again inside its own call; the reconciler verifies on a timer. Three readers, one source of truth, no inbound surface from Paystack to secure.</p>
+      <div class="note info" style="margin-bottom:0"><b>If a dedicated account appears later:</b> add <code>POST /webhooks/paystack</code> with HMAC-SHA512 over the raw body, dedupe on Paystack's event id, and call the same <code>ConfirmOrder(ref, actor=webhook)</code>, which re-verifies anyway. It becomes an accelerator; nothing else changes.</div>
+      <h3 style="margin-top:16px">Reconciler (ADR-5)</h3>
+      <pre class="code">every 60 s, under lock "reconcile:tick" (PX 55000):
+  1. pending orders with reference, created &gt; 2 min ago, reconciled_at null or &gt; 5 min ago, limit 20:
+       verify; success → ConfirmOrder(actor=reconciler); else set reconciled_at
+  2. pending orders with NO reference, created &gt; 2 min ago → cancelled, order_events(init_lost)
+  3. pending orders past expires_at whose last check ≠ success → expired
+  4. once a day at 03:00 WAT: prune tool_calls / payment_checks older than 90 days</pre>
+      <p>Verify calls per minute ≤ 20, so the reconciler can never exhaust Paystack's rate limit. Every pass emits <code>reconcile_orders_total{result}</code>.</p>
+      <div class="note good" style="margin-bottom:0"><b>What this buys:</b> a customer who pays and never types "paid" shows up on the board within about 3 minutes, with no webhook involved.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s11">
+  <div class="sec-head"><span class="num">11</span><h2>REST and SSE API for the admin panel</h2><span class="rule"></span></div>
+  <p class="lede">Base <code>https://&lt;railway&gt;/api/v1</code>. JSON, snake_case. Success <code>{"data": …, "meta"?: …}</code>. Errors in §12. Times ISO 8601 UTC; <code>*_wat</code> fields are preformatted Lagos labels. Cursor pagination only. Writes accept <code>Idempotency-Key</code> and <code>If-Match: "&lt;version&gt;"</code>.</p>
+
+  <div class="card quiet">
+    <table>
+      <thead><tr><th style="width:8%">Method</th><th style="width:36%">Path</th><th style="width:10%">Auth</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/healthz</code></td><td><span class="tag t-pub">public</span></td><td>Liveness, readiness, dependency state</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/metrics</code></td><td><span class="tag t-pub">internal</span></td><td>Prometheus; bearer <code>METRICS_TOKEN</code></td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/paid?ref=</code></td><td><span class="tag t-pub">public</span></td><td>HTML after checkout</td></tr>
+        <tr><td><span class="tag t-post">POST</span></td><td><code>/api/v1/auth/login</code></td><td><span class="tag t-pub">public</span></td><td>Email + password → JWT</td></tr>
+        <tr><td><span class="tag t-post">POST</span></td><td><code>/api/v1/auth/logout</code></td><td><span class="tag t-jwt">jwt</span></td><td>Revoke this token's <code>jti</code></td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/auth/me</code></td><td><span class="tag t-jwt">jwt</span></td><td>Who am I</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/vendor</code> · <span class="tag t-put">PUT</span></td><td><span class="tag t-jwt">jwt</span></td><td>Settings + computed window</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/menu</code> · <span class="tag t-post">POST</span> · <span class="tag t-put">PATCH</span> <code>/:id</code></td><td><span class="tag t-jwt">jwt</span></td><td>Items</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/zones</code> · <span class="tag t-post">POST</span> · <span class="tag t-put">PATCH</span> <code>/:id</code></td><td><span class="tag t-jwt">jwt</span></td><td>Delivery zones</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/orders?status=&amp;cursor=&amp;limit=</code></td><td><span class="tag t-jwt">jwt</span></td><td>List</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/orders/:order_no</code></td><td><span class="tag t-jwt">jwt</span></td><td>Detail + lines + checks + events + tool calls</td></tr>
+        <tr><td><span class="tag t-post">POST</span></td><td><code>/api/v1/orders/:order_no/resolve</code> · <code>/cancel</code></td><td><span class="tag t-jwt">jwt</span></td><td>State changes (registered before <code>/:order_no</code>)</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/stats/today</code></td><td><span class="tag t-jwt">jwt</span></td><td>Board tiles</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/activity?cursor=&amp;limit=&amp;tool=&amp;ok=</code></td><td><span class="tag t-jwt">jwt</span></td><td>Tool-call log</td></tr>
+        <tr><td><span class="tag t-get">GET</span></td><td><code>/api/v1/events</code></td><td><span class="tag t-sse">sse · jwt</span></td><td>Live events for the board</td></tr>
+        <tr><td><span class="tag t-post">POST</span></td><td><code>/api/v1/admin/reset</code></td><td><span class="tag t-jwt">jwt</span></td><td>Demo reset</td></tr>
+        <tr><td><span class="tag t-post">POST</span></td><td><code>/mcp</code></td><td><span class="tag t-mcp">mcp</span></td><td>§08</td></tr>
+      </tbody>
+    </table>
+    <p><b>Versioning:</b> the path carries <code>v1</code>. Additive changes (new fields) do not bump it; a removed or renamed field does. The frontend tolerates unknown fields.</p>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-post">POST</span><code>/api/v1/auth/login</code><span class="tag t-pub">public</span></div>
+    <p>10 attempts per minute per IP (Redis). Wrong email and wrong password return the same error and take the same time (bcrypt against a dummy hash when the email is unknown).</p>
+    <pre class="code req">{"email":"iyabisi@example.com","password":"…"}</pre>
+    <pre class="code res">200 {"data":{"token":"eyJhbGciOiJIUzI1NiIs…","expires_at":"2026-10-28T11:00:00Z","admin":{"id":"adm_01J…","email":"iyabisi@example.com","name":"Iya Bisi"}}}</pre>
+    <pre class="code err">401 {"error":{"code":"invalid_credentials","message":"Email or password is wrong.","severity":"auth"}}
+429 {"error":{"code":"rate_limited","message":"Too many attempts. Try again in 42 seconds.","severity":"rate-limited"}}   Retry-After: 42</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/vendor</code><span class="tag t-jwt">jwt</span></div>
+    <pre class="code res">200 {"data":{
+  "vendor_name":"Iya Bisi's Kitchen","pickup_address":"14 Adelabu Street, Surulere, Lagos","rider_phone":"0801 000 0000",
+  "order_prefix":"IBK","prep_minutes":40,"pending_ttl_minutes":30,"low_stock_threshold":3,
+  "windows":{"lunch":{"open":"11:00","close":"15:00","orders_close":"14:30"},"evening":{"open":"17:00","close":"20:30","orders_close":"20:00"}},
+  "now":{"wat":"12:40","window":"lunch","orders_open":true,"orders_close_at":"14:30","next_window":null},
+  "version":3,"updated_at":"2026-10-27T09:12:00Z"}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-put">PUT</span><code>/api/v1/vendor</code></div>
+    <pre class="code req">If-Match: "3"
+Idempotency-Key: 7c0a2e1e-…
+{"vendor_name":"…","pickup_address":"…","rider_phone":"…","prep_minutes":40,"pending_ttl_minutes":30,"low_stock_threshold":3,
+ "windows":{"lunch":{"open":"11:00","close":"15:00","orders_close":"14:30"},"evening":{…}}}</pre>
+    <p>Validation: <code>open &lt; orders_close ≤ close</code> per window; lunch closes before evening opens; <code>prep_minutes</code> 5–240. Stale <code>If-Match</code> → 409 <code>version_conflict</code> with the current object. Success invalidates the menu cache and publishes <code>settings.updated</code>.</p>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/menu</code><span class="tag t-jwt">jwt</span></div>
+    <pre class="code res">200 {"data":{"items":[
+  {"id":"jollof","name":"Jollof rice & chicken","description":"","price_kobo":350000,"price_display":"₦3,500",
+   "portions":16,"available":true,"window":"lunch","sort":1,"photo_url":null,"offered_now":true,"low":false,
+   "version":4,"updated_at":"2026-10-27T11:44:12Z"}, …]}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/menu</code></div>
+    <pre class="code req">Idempotency-Key: …
+{"id":"asun","name":"Asun","description":"Spicy goat","price_naira":2500,"portions":10,"available":true,"window":"evening","sort":9}</pre>
+    <p>Admin input takes <code>price_naira</code> (integer) for the vendor; storage and every response are kobo + display. 201 with the item. Duplicate id → 409 <code>conflict</code>.</p>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-put">PATCH</span><code>/api/v1/menu/:id</code></div>
+    <pre class="code req">If-Match: "4"
+{"portions":20}            // any subset: name, description, price_naira, portions, available, window, sort, photo_url</pre>
+    <p><code>portions</code> is an absolute set under <code>FOR UPDATE</code>, so it serialises with confirms. 200 with the item; 409 <code>version_conflict</code> if stale. Invalidates cache, publishes <code>menu.updated</code>.</p>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/orders?status=paid,paid_needs_attention&amp;cursor=&amp;limit=50</code><span class="tag t-jwt">jwt</span></div>
+    <pre class="code res">200 {"data":[
+  {"order_no":"IBK-0231","status":"paid","customer_name":"Tobi","phone_masked":"0801•••5678",
+   "fulfilment":"delivery","zone":{"id":"surulere","name":"Surulere"},"address":"22 Bode Thomas, Surulere","window":"lunch",
+   "lines_summary":"2× Jollof rice & chicken, 1× Chapman","total_kobo":870000,"total_display":"₦8,700",
+   "reference":"IBK-0231-a1b2","paid_at":"2026-10-27T11:44:12Z","ready_by":"2026-10-27T12:25:00Z","ready_by_wat":"13:25",
+   "confirmed_by":"mcp","attention_reason":null,"created_at":"2026-10-27T11:41:03Z"}, …],
+ "meta":{"next_cursor":"MjAyNi0xMC0yN1QxMTo0MTowM1p8MDFK…","has_more":true}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/api/v1/orders/IBK-0231</code></div>
+    <pre class="code res">200 {"data":{ …list row…, "phone":"08012345678","note":"no pepper","source":"mcp","authorization_url":"https://checkout.paystack.com/x7k2…",
+  "subtotal_kobo":800000,"subtotal_display":"₦8,000","delivery_fee_kobo":70000,"delivery_fee_display":"₦700",
+  "lines":[{"item_id":"jollof","name":"Jollof rice & chicken","qty":2,"unit_price_kobo":350000,"unit_display":"₦3,500","line_kobo":700000,"line_display":"₦7,000"},…],
+  "events":[{"type":"created","actor":"mcp","at":"…"},{"type":"link_issued","actor":"mcp","at":"…"},{"type":"verified","actor":"mcp","at":"…","data":{"outcome":"success"}},{"type":"confirmed","actor":"mcp","at":"…"}],
+  "payment_checks":[{"checked_at":"…","source":"mcp","paystack_status":"success","outcome":"success","amount_kobo":870000,"gateway_response":"Approved","latency_ms":388}],
+  "tool_calls":[{"id":915,"tool":"create_order","ok":true,"latency_ms":612,"created_at":"…"},…],
+  "resolved_at":null,"resolution_note":null,"expires_at":"2026-10-27T12:11:03Z"}}</pre>
+    <pre class="code err">404 {"error":{"code":"not_found","message":"No order IBK-9999.","severity":"not-found"}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/IBK-0231/resolve</code></div>
+    <pre class="code req">Idempotency-Key: …
+{"note":"Called Tobi, swapped ofada for jollof, he agreed."}</pre>
+    <pre class="code res">200 {"data":{…,"status":"resolved","resolved_at":"…","resolution_note":"…"}}
+409 {"error":{"code":"invalid_state_transition","message":"Only an order that needs attention can be resolved.","severity":"conflict"}}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-post">POST</span><code>/api/v1/orders/IBK-0230/cancel</code></div>
+    <pre class="code req">{"reason":"customer changed mind"}</pre>
+    <pre class="code res">200 {"data":{…,"status":"cancelled"}}
+409 {"error":{"code":"invalid_state_transition","message":"Only an unpaid order can be cancelled.","severity":"conflict"}}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/stats/today</code><span class="tag t-jwt">jwt</span></div>
+    <pre class="code res">200 {"data":{"date_wat":"2026-10-27","window":"lunch","orders_open":true,"orders_close_at":"14:30",
+  "paid_count":5,"paid_total_kobo":4190000,"paid_total_display":"₦41,900",
+  "awaiting_payment_count":1,"needs_attention_count":0,"cancelled_count":1,"expired_count":0,
+  "stock":[{"id":"jollof","name":"Jollof rice & chicken","portions":16,"low":false},{"id":"ofada","name":"Ofada rice & ayamase","portions":1,"low":true},…],
+  "low_stock_threshold":3,"redis":"ok"}}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/activity?cursor=&amp;limit=30&amp;tool=confirm_order&amp;ok=false</code><span class="tag t-jwt">jwt</span></div>
+    <pre class="code res">200 {"data":[
+  {"id":918,"tool":"confirm_order","ok":true,"error_code":null,"latency_ms":421,"order_no":"IBK-0231","request_id":"req_01J…",
+   "args":{"reference":"IBK-0231-a1b2"},"result":{"order_no":"IBK-0231","status":"paid",…},"created_at":"…"},
+  {"id":917,"tool":"create_order","ok":false,"error_code":"item_unavailable","latency_ms":44,"order_no":null,
+   "args":{"customer_name":"Ngozi","items":[{"item_id":"ofada","qty":2}],"address":"•••• Street","phone":"0801•••0004"},
+   "result":{"error":"item_unavailable","message":"…","max_qty":1},"created_at":"…"}],
+ "meta":{"next_cursor":"OTE2","has_more":true}}</pre>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/api/v1/events</code><span class="tag t-sse">sse</span><span class="tag t-jwt">jwt</span></div>
+    <p>Server-Sent Events. Auth via <code>Authorization</code> header (the frontend uses <code>fetch</code> + a stream reader, not <code>EventSource</code>, because <code>EventSource</code> cannot send headers). Heartbeat every 15 s. The server closes after 10 minutes; the client reconnects with <code>Last-Event-ID</code> and does a full refetch on every (re)connect. Events carry ids and types only, never payloads, so a missed event costs one refetch, never a wrong number.</p>
+    <pre class="code res">HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Cache-Control: no-store
+X-Accel-Buffering: no
+
+id: 1730030652001
+event: order.created
+data: {"order_no":"IBK-0232","at":"2026-10-27T12:04:12Z"}
+
+id: 1730030671004
+event: order.updated
+data: {"order_no":"IBK-0232","status":"paid","at":"…"}
+
+event: menu.updated
+data: {"at":"…"}
+
+event: settings.updated
+data: {"at":"…"}
+
+event: reset
+data: {"at":"…"}
+
+: heartbeat</pre>
+    <p>Event types: <code>order.created</code>, <code>order.updated</code>, <code>menu.updated</code>, <code>settings.updated</code>, <code>reset</code>, <code>degraded</code> (Redis fallback engaged or cleared). Fan-out: one Redis subscription per replica, a goroutine per client with a 32-message buffer; a slow client is dropped and reconnects.</p>
+  </div>
+
+  <div class="ep">
+    <div class="ep-head"><span class="tag t-get">GET</span><code>/healthz</code><span class="tag t-pub">public</span></div>
+    <pre class="code res">200 {"ok":true,"ready":true,"version":"2026.10.27-3f9c","db":"ok","redis":"ok","paystack":"configured","mcp_tools":4,"reconciler_last_run":"2026-10-27T12:03:00Z","uptime_s":8812}
+200 {"ok":true,"ready":true,…,"redis":"degraded",…}      // still serving
+503 {"ok":false,"ready":false,"db":"error: dial tcp …"}</pre>
+    <div class="ep-head" style="margin-top:12px"><span class="tag t-get">GET</span><code>/paid?ref=IBK-0231-a1b2</code></div>
+    <p>Go template, same palette as the admin. If the order exists: "Payment received for order IBK-0231. Go back to WhatsApp and reply <b>paid</b> so Iya Bisi's assistant can confirm it." Otherwise a neutral "Thanks, go back to WhatsApp." Never claims success itself. Rate limited 60/min/IP.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s12">
+  <div class="sec-head"><span class="num">12</span><h2>Errors</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>REST envelope</h3>
+      <pre class="code err">{"error":{
+  "code":"validation",                 // stable identity: clients branch on this
+  "message":"prep_minutes must be between 5 and 240.",   // resolved text: clients display this
+  "severity":"body-validation",        // band: body-validation · suspicious-validation · auth · forbidden ·
+                                       //       not-found · conflict · business-rule · rate-limited · upstream · server-fault
+  "field_errors":[{"field":"prep_minutes","message":"must be between 5 and 240"}],
+  "request_id":"req_01J…"
+}}</pre>
+      <table>
+        <thead><tr><th style="width:14%">HTTP</th><th style="width:40%">code</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td><code>validation</code> · <code>malformed_json</code></td><td>All field errors at once; bad JSON is a 400, never a 500</td></tr>
+          <tr><td>401</td><td><code>unauthenticated</code> · <code>invalid_credentials</code> · <code>token_revoked</code></td><td>Missing/expired/revoked JWT; wrong login</td></tr>
+          <tr><td>404</td><td><code>not_found</code></td><td>Order, item, zone</td></tr>
+          <tr><td>409</td><td><code>conflict</code> · <code>invalid_state_transition</code> · <code>version_conflict</code></td><td>Duplicate id; illegal change; stale <code>If-Match</code> (body carries current object)</td></tr>
+          <tr><td>422</td><td><code>business_rule</code> · <code>idempotency_mismatch</code></td><td>Settings rule; same key, different body</td></tr>
+          <tr><td>429</td><td><code>rate_limited</code></td><td><code>Retry-After</code> set</td></tr>
+          <tr><td>502</td><td><code>upstream_unavailable</code></td><td>Paystack from an admin path</td></tr>
+          <tr><td>500</td><td><code>internal</code></td><td>Generic message; details in logs under <code>request_id</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Domain errors and rendering</h3>
+      <pre class="code">type DomainError struct {
+  Code string; Message string; Retryable bool; Fields map[string]any
+}
+// constructors, never inline strings:
+func ErrItemUnavailable(item Item, max int) *DomainError
+func ErrWindowClosed(next Window) *DomainError</pre>
+      <ul class="clean">
+        <li><code>ordering</code> returns <code>(T, *DomainError)</code> for rejections and a plain <code>error</code> only for infrastructure failure.</li>
+        <li><b>MCP renderer:</b> <code>{"error": Code, "message", "retryable", …Fields}</code> as text content, <code>isError: true</code>. Infrastructure errors become <code>store_unavailable</code> or <code>paystack_unavailable</code>; never a stack trace.</li>
+        <li><b>REST renderer:</b> the envelope, status from a fixed map in <code>httpapi/envelope.go</code>.</li>
+        <li>Messages are complete sentences a customer or vendor can read; no HTTP codes, SQL, or Go types inside them.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s13">
+  <div class="sec-head"><span class="num">13</span><h2>Failure modes</h2><span class="rule"></span></div>
+  <p class="lede">What breaks, what the customer sees, what the vendor sees, what the system does, and how we know.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th style="width:18%">Failure</th><th style="width:20%">Customer sees</th><th style="width:18%">Vendor sees</th><th style="width:26%">System behaviour</th><th>Detection</th></tr></thead>
+      <tbody>
+        <tr><td><b>Paystack down at initialize</b></td><td>"Paystack isn't responding, nothing charged, try in a minute"</td><td>Cancelled order with <code>init_failed</code> event</td><td>Order cancelled; no reference; no retry</td><td><code>paystack_requests_total{op="initialize",result="unavailable"}</code>; WARN log</td></tr>
+        <tr><td><b>Paystack down at verify</b></td><td>"Can't check right now; your payment is safe"</td><td>Pending order stays pending</td><td>Check recorded as <code>unavailable</code>; reconciler retries every minute</td><td>Same metric, <code>op="verify"</code></td></tr>
+        <tr><td><b>Customer pays, never says "paid"</b></td><td>Nothing until they return</td><td>Order flips to paid within ~3 min</td><td>Reconciler confirms with <code>actor=reconciler</code></td><td><code>orders_confirmed_total{by="reconciler"}</code></td></tr>
+        <tr><td><b>Model skips verify, calls confirm</b></td><td>Correct reply either way</td><td>Normal</td><td>Confirm verifies on its own</td><td><code>order_events</code> has no <code>verified</code> before <code>confirmed</code>; counted</td></tr>
+        <tr><td><b>Model calls create twice for one cart</b></td><td>Same link, same reference</td><td>One order</td><td>Lock + partial unique index → <code>reused=true</code></td><td><code>orders_created_total{reused="true"}</code></td></tr>
+        <tr><td><b>Two customers pay for the last portion</b></td><td>Second: "payment received, ofada ran out, Iya Bisi will contact you"</td><td>Red needs-attention row with reason</td><td>Lock order, lock items, one decrement, second → <code>paid_needs_attention</code></td><td><code>orders_confirmed_total{status="paid_needs_attention"}</code></td></tr>
+        <tr><td><b>Amount tampered or partial</b></td><td>"Flagged for Iya Bisi, not confirmed"</td><td>Check row with <code>amount_mismatch</code></td><td>Not confirmed; stock untouched</td><td><code>payment_checks_total{outcome="amount_mismatch"}</code>; WARN</td></tr>
+        <tr><td><b>Redis down</b></td><td>Nothing</td><td>"Live updates paused" chip; board polls</td><td>Fallbacks per §07; <code>degraded</code> event emitted when it returns</td><td><code>redis_fallback_total{use}</code>; healthz <code>redis: degraded</code></td></tr>
+        <tr><td><b>Postgres down</b></td><td>"Ordering system not responding, nothing charged"</td><td>Board error state with retry</td><td>503 on healthz; Railway restarts; no writes possible so nothing is half-done</td><td><code>db_up</code> gauge 0; Railway health alert</td></tr>
+        <tr><td><b>Crash between order insert and initialize</b></td><td>Error reply</td><td>Order cancelled after 2 min</td><td>Reconciler step 2 cancels reference-less pending orders</td><td><code>reconcile_orders_total{result="init_lost"}</code></td></tr>
+                <tr><td><b>Chord bearer leaked</b></td><td>Nothing</td><td>Nothing</td><td>Rotate <code>MCP_BEARER_TOKEN</code>, update Chord; rate limit caps blast radius; tools cannot read PII beyond what the model already handles</td><td>Unusual <code>mcp_requests_total</code> rate</td></tr>
+        <tr><td><b>Clock skew / wrong tz</b></td><td>Wrong "orders closed" message</td><td>Window banner wrong</td><td>All window logic uses one injected clock in Lagos; tzdata embedded</td><td>Unit tests at boundaries; <code>now_wat</code> visible in every menu response</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s14">
+  <div class="sec-head"><span class="num">14</span><h2>SLOs, capacity and limits</h2><span class="rule"></span></div>
+  <div class="grid g3">
+    <div class="card">
+      <h3>Targets (demo tier, one replica)</h3>
+      <table>
+        <tbody>
+          <tr><td><b>Availability</b></td><td>99.5% of <code>/healthz</code> probes ok over 7 days</td></tr>
+          <tr><td><b><code>get_menu</code> p95</b></td><td>≤ 150 ms (cache hit), ≤ 400 ms (miss)</td></tr>
+          <tr><td><b><code>create_order</code> p95</b></td><td>≤ 2.5 s (bounded by Paystack initialize)</td></tr>
+          <tr><td><b><code>confirm_order</code> p95</b></td><td>≤ 2.5 s</td></tr>
+          <tr><td><b>Admin reads p95</b></td><td>≤ 250 ms</td></tr>
+          <tr><td><b>Board freshness</b></td><td>≤ 2 s with Redis, ≤ 30 s degraded</td></tr>
+          <tr><td><b>Correctness</b></td><td>0 double decrements, 0 double confirms, ever. Verified by the parallel-confirm test and by <code>portions ≥ 0</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Capacity</h3>
+      <ul class="clean">
+        <li>Expected load: one vendor, ≤ 60 orders/day, ≤ 5 concurrent conversations. The design is comfortable to ~50 orders/min on one replica; the bottleneck would be Paystack latency, not us.</li>
+        <li>Postgres pool 8; each confirm holds a connection ≤ 50 ms inside the tx (verify happens outside).</li>
+        <li>Redis pool 10; ≤ 5 commands per tool call.</li>
+        <li>SSE: ≤ 20 concurrent admin clients; each is one goroutine and a 32-message buffer.</li>
+        <li>Memory: ~40 MB idle; menu cache &lt; 50 KB.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Limits enforced</h3>
+      <table>
+        <tbody>
+          <tr><td><code>/mcp</code></td><td>120 req/min total (Chord is one client); body 64 KiB; 20 s handler timeout</td></tr>
+          <tr><td>Login</td><td>10/min/IP</td></tr>
+          <tr><td><code>/paid</code></td><td>60/min/IP</td></tr>
+          <tr><td>Admin API</td><td>300/min per token</td></tr>
+          <tr><td>Reconciler</td><td>≤ 20 verifies per pass, one pass per minute</td></tr>
+          <tr><td>Order</td><td>≤ 12 lines, qty ≤ 20, total ≤ ₦500,000 (guard against a typo becoming a ₦5m link)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s15">
+  <div class="sec-head"><span class="num">15</span><h2>Security</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Threat model, briefly</h3>
+      <table>
+        <thead><tr><th style="width:34%">Threat</th><th>Control</th></tr></thead>
+        <tbody>
+          <tr><td>Prompt injection via customer text making the model call tools wrongly</td><td>Tools validate everything; worst case is a wrong sentence or a refused call. No tool deletes, refunds or reads other customers.</td></tr>
+          <tr><td>Enumeration of orders via <code>/paid?ref=</code></td><td>References have 16 bits of randomness per order number and the page shows only the order number; rate limited.</td></tr>
+          <tr><td>Admin credential stuffing</td><td>bcrypt 12, Redis rate limit, constant-time path, generic error.</td></tr>
+          <tr><td>Stolen admin JWT</td><td>24 h expiry, logout revokes <code>jti</code>, password change revokes all (bumps a per-admin <code>token_version</code> claim check).</td></tr>
+          <tr><td>Fake "I've paid" claims (the classic fake-alert fraud)</td><td>No order is confirmed on a customer's word; every confirmation reads Paystack's own record by API.</td></tr>
+          <tr><td>Chord bearer misuse</td><td>Rate limit; rotate; tools expose no admin surface.</td></tr>
+          <tr><td>PII in logs</td><td>Phone and address masked in <code>tool_calls.args</code> and never logged in full; the order row is the only full copy.</td></tr>
+          <tr><td>Secrets in the repo</td><td><code>.env</code> gitignored, <code>.env.example</code> blank; CI greps for <code>sk_test_</code>, <code>sk_live_</code>, <code>chord_live_</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Mechanics</h3>
+      <ul class="clean">
+        <li><b>JWT:</b> HS256, <code>JWT_SECRET</code> 48 bytes; claims <code>sub</code>, <code>email</code>, <code>jti</code>, <code>tv</code> (token_version), <code>iat</code>, <code>exp</code> 24 h. Sent as <code>Authorization: Bearer</code>; stored by the frontend in memory + <code>localStorage</code> (web spec §06). No cookies, so Netlify ↔ Railway needs no <code>SameSite</code> work.</li>
+        <li><b>CORS</b> on <code>/api/*</code> only: exact-match <code>CORS_ORIGINS</code> (Netlify prod URL, <code>*.netlify.app</code> deploy previews matched by suffix, <code>http://localhost:5173</code>). Methods GET POST PUT PATCH OPTIONS; headers Authorization, Content-Type, Idempotency-Key, If-Match, Last-Event-ID; <code>Vary: Origin</code>; max-age 600. <code>/mcp</code> gets no CORS headers.</li>
+        <li><b>Headers:</b> <code>X-Request-ID</code> accepted or generated and echoed; <code>Cache-Control: no-store</code> on all API responses; <code>X-Content-Type-Options: nosniff</code>.</li>
+        <li>Gin release mode; <code>TrustedProxies</code> = Railway's; <code>ClientIP()</code> feeds rate limits.</li>
+        <li><code>/metrics</code> behind <code>METRICS_TOKEN</code> so it is not a public enumeration of our internals.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s16">
+  <div class="sec-head"><span class="num">16</span><h2>Observability</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Logs (<code>slog</code> JSON → stdout → Railway)</h3>
+      <pre class="code">{"time":"…","level":"INFO","msg":"tool","tool":"confirm_order","ok":true,"latency_ms":421,"order_no":"IBK-0231","actor":"mcp","request_id":"req_01J…"}
+{"time":"…","level":"WARN","msg":"paystack","op":"verify","reference":"IBK-0231-a1b2","status":"abandoned","latency_ms":388,"request_id":"…"}
+{"time":"…","level":"WARN","msg":"redis.fallback","use":"cache","err":"dial tcp: i/o timeout"}
+{"time":"…","level":"ERROR","msg":"http","method":"GET","path":"/api/v1/orders","status":500,"err":"…","request_id":"…"}</pre>
+      <ul class="clean">
+        <li>One line per HTTP request, per tool call, per Paystack call, per reconciler pass that changed something.</li>
+        <li>INFO = happy path, WARN = every domain rejection and non-success Paystack status and every fallback, ERROR = infrastructure only.</li>
+        <li><code>request_id</code> ties a Chord call → tool_calls row → Paystack call → order_events row.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Metrics (<code>/metrics</code>, Prometheus text)</h3>
+      <pre class="code">http_requests_total{route,method,status}          http_request_duration_seconds{route}
+mcp_tool_calls_total{tool,ok,error_code}          mcp_tool_duration_seconds{tool}
+paystack_requests_total{op,result}                paystack_request_duration_seconds{op}
+orders_created_total{reused}                      orders_confirmed_total{status,by}
+payment_checks_total{outcome,source}              reconcile_orders_total{result}
+redis_fallback_total{use}                         sse_clients  (gauge)
+db_up  redis_up  (gauges)                         menu_cache_hits_total{layer="redis"|"memory"|"db"}</pre>
+      <p>Railway does not scrape Prometheus by default; the endpoint exists so a Grafana Cloud agent can be pointed at it in ten minutes, and so <code>make smoke</code> can assert counters moved.</p>
+      <h4>Alerts worth having (go-live note)</h4>
+      <ul class="clean">
+        <li><code>db_up == 0</code> for 2 min → page.</li>
+        <li><code>paystack_requests_total{result="unavailable"}</code> rate &gt; 5/min → warn the vendor via WhatsApp (future).</li>
+        <li><code>orders_confirmed_total{status="paid_needs_attention"}</code> &gt; 0 → vendor notification (future).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s17">
+  <div class="sec-head"><span class="num">17</span><h2>Config, deploy and runbook</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Environment</h3>
+      <table>
+        <thead><tr><th style="width:38%">Variable</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>PORT</code></td><td>Railway injects; 8080 locally</td></tr>
+          <tr><td><code>DATABASE_URL</code></td><td><code>${{Postgres.DATABASE_URL}}</code></td></tr>
+          <tr><td><code>REDIS_URL</code></td><td><code>${{Redis.REDIS_URL}}</code>; optional, absence = degraded mode from boot</td></tr>
+          <tr><td><code>PUBLIC_BASE_URL</code></td><td>Railway domain</td></tr>
+          <tr><td><code>CORS_ORIGINS</code></td><td>Comma list</td></tr>
+          <tr><td><code>PAYSTACK_SECRET_KEY</code> · <code>PAYSTACK_FAKE</code></td><td><code>sk_test_…</code>; fake only local/tests</td></tr>
+          <tr><td><code>MCP_BEARER_TOKEN</code></td><td><code>openssl rand -hex 24</code>; same value in Chord</td></tr>
+          <tr><td><code>JWT_SECRET</code> · <code>METRICS_TOKEN</code> · <code>ADMIN_TOKEN</code></td><td>Random</td></tr>
+          <tr><td><code>ADMIN_EMAIL</code> · <code>ADMIN_PASSWORD</code></td><td>Bootstrap only; password removable after first boot</td></tr>
+          <tr><td><code>SEED_DEMO_ORDERS</code></td><td><code>1</code> for the demo deployment</td></tr>
+          <tr><td><code>LOG_LEVEL</code></td><td><code>info</code></td></tr>
+        </tbody>
+      </table>
+      <h4><code>backend/railway.json</code></h4>
+      <pre class="code">{ "$schema": "https://railway.app/railway.schema.json",
+  "build":  { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "deploy": { "healthcheckPath": "/healthz", "healthcheckTimeout": 60,
+              "restartPolicyType": "ON_FAILURE", "restartPolicyMaxRetries": 5 } }</pre>
+      <p>Railway service <b>root directory = <code>backend</code></b>. Postgres and Redis added from the catalogue; their URLs referenced. 1 replica.</p>
+    </div>
+    <div class="card">
+      <h3><code>backend/Dockerfile</code></h3>
+      <pre class="code">FROM golang:1.27-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/server ./cmd/server
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/server /server
+ENV GIN_MODE=release
+EXPOSE 8080
+USER nonroot
+ENTRYPOINT ["/server"]</pre>
+      <p>Pure Go, ~15 MB image, non-root. <code>time/tzdata</code> imported so Lagos resolves.</p>
+      <h4>Rollout and rollback</h4>
+      <ul class="clean">
+        <li>Deploy = push to <code>main</code> (Railway GitHub integration, watch path <code>backend/**</code>) or <code>railway up</code> from <code>backend/</code>.</li>
+        <li>Migrations are forward-only and additive; a rollback is redeploying the previous image, which still runs against the newer schema. A destructive migration ships in two releases (add → migrate data → drop later).</li>
+        <li>Health check gates traffic; a failed migration fails the deploy and the previous instance keeps serving.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card quiet">
+    <h3>Runbook</h3>
+    <table>
+      <thead><tr><th style="width:30%">Symptom</th><th>Do</th></tr></thead>
+      <tbody>
+        <tr><td>Chord health probe says <code>status: error</code></td><td><code>curl -X POST $URL/mcp -H "Authorization: Bearer $T" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</code>. 401 → token mismatch between Railway and Chord. Timeout → check Railway logs for boot errors; <code>/healthz</code> <code>ready:false</code> means migrations are still running or failed.</td></tr>
+        <tr><td>Agent says menu is empty</td><td><code>GET /api/v1/menu</code>: all <code>available=false</code> or <code>portions=0</code>, or outside both windows (check <code>now</code> in <code>/api/v1/vendor</code>). Fix in the admin panel; cache clears on write.</td></tr>
+        <tr><td>Order paid on Paystack, still pending on the board</td><td>Wait 3 min for the reconciler; or <code>POST /mcp confirm_order</code> by hand with the reference; check <code>payment_checks</code> for <code>amount_mismatch</code>.</td></tr>
+        <tr><td>Board shows "live updates paused"</td><td>Redis degraded. <code>/healthz</code> → <code>redis</code>. Railway Redis restart; the service reconnects by itself and emits <code>degraded: false</code>.</td></tr>
+        <tr><td>Stock looks wrong</td><td><code>SELECT * FROM order_events WHERE type IN ('confirmed','needs_attention') ORDER BY created_at DESC LIMIT 20</code>; compare with <code>menu_items.portions</code>; adjust via PATCH with a note in the field notes.</td></tr>
+        <tr><td>Rotate the Chord bearer</td><td>Set new <code>MCP_BEARER_TOKEN</code> on Railway (restarts), then <code>PUT …/mcp-servers/{id}</code> with the new <code>auth_token</code> in Chord, then probe.</td></tr>
+        <tr><td>Reset the demo</td><td>Admin panel → Reset, or <code>POST /api/v1/admin/reset</code> with a JWT. Boards refetch via the <code>reset</code> event.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s18">
+  <div class="sec-head"><span class="num">18</span><h2>Tests</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Unit (no infrastructure)</h3>
+      <ul class="clean">
+        <li><code>money</code>: format 0, 870000, 123456789; multiply; no float anywhere (a lint rule bans <code>float64</code> in <code>ordering</code>).</li>
+        <li><code>clock</code>: windows at 10:59, 11:00, 14:30, 14:31, 16:00, 20:00, 20:01, 23:00 WAT; next-window across midnight.</li>
+        <li><code>ordering</code>: cart hash stable across line order and whitespace; ready-by rounding; transition table exhaustive.</li>
+        <li><code>paystack</code>: <code>httptest</code> per status, 404, 5xx, timeout, malformed JSON → typed error; signature good/bad.</li>
+        <li><code>cache</code>/<code>locks</code>/<code>ratelimit</code>/<code>events</code>: memory implementations against the shared interface contract tests, then the Redis implementations against <code>miniredis</code>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Integration (Postgres + Redis, <code>docker compose</code> or CI services)</h3>
+      <p>Each test gets its own schema (<code>CREATE SCHEMA t_&lt;n&gt;</code>, <code>search_path</code>, migrate, drop) and its own Redis key prefix. Fake Paystack injected.</p>
+      <ul class="clean">
+        <li>Create → confirm: 18 → 16, <code>paid</code>, <code>ready_by</code> set, four <code>order_events</code>.</li>
+        <li>Confirm twice: one decrement; second <code>already_confirmed</code>.</li>
+        <li>Ten goroutines confirm ten orders for the last 3 portions: exactly 3 paid, 7 needs_attention, portions 0, never negative.</li>
+        <li>Same cart twice within TTL: <code>reused=true</code>; after expiry: new order.</li>
+        <li>Amount mismatch: not confirmed; check row written.</li>
+        <li>Reconciler: pending order whose fake verify flips to success is confirmed with <code>actor=reconciler</code>; reference-less order older than 2 min is cancelled; expired marked.</li>
+        <li>Redis off (client pointed at a closed port): every path above still passes; <code>redis_fallback_total</code> &gt; 0.</li>
+        <li>HTTP: <code>/mcp</code> 401 without bearer; <code>tools/list</code> returns four; login lockout at 11th attempt; cursor pagination walks 120 orders without duplicates; <code>If-Match</code> stale → 409; <code>Idempotency-Key</code> replay returns the stored 201; SSE delivers <code>order.updated</code> within 1 s of a confirm.</li>
+      </ul>
+      <div class="note info" style="margin-bottom:0">CI: <code>go vet</code>, <code>staticcheck</code>, <code>go test -race ./...</code> with Postgres 17 and Redis 7 service containers, plus the secrets grep. Under two minutes.</div>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <span>Chat to paid order · backend and MCP technical design · v2</span>
+  <span>docs/tech-spec-backend.html · companion: tech-spec-web.html · plan.html</span>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel Spec</title>
+<meta name="description" content="Technical design for the chat-to-order admin panel: React 19 + TypeScript on Vite with TanStack Router and Query, deployed to Netlify from /frontend. Covers architecture, routes, data layer with SSE invalidation, auth, the design system adapted from Ohlify, screens with every state, error contract, build, deploy and tests.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1b2430; --ink-2:#3d4c5c; --ink-3:#6b7a89; --ink-4:#9aa7b3;
+  --paper:#fbfaf7; --paper-2:#f3f1ea; --paper-3:#ebe8df;
+  --line:#e6e2d8; --line-2:#d3cec1;
+  --leaf-50:#f0f8f3; --leaf-100:#dff1e6; --leaf-200:#b9e2c9; --leaf-300:#8ccfa8; --leaf:#1f8a5b; --leaf-600:#19754d; --leaf-700:#14603f; --leaf-900:#0b3a25;
+  --success:#1f8a5b; --success-soft:#e3f4ea; --success-border:#b4dfc6; --success-onsoft:#14603f;
+  --caution:#d98c1f; --caution-soft:#fdf2df; --caution-border:#f3d6a0; --caution-onsoft:#7a4b07;
+  --critical:#d64545; --critical-soft:#fde9e9; --critical-border:#f5bcbc; --critical-onsoft:#8a1f1f;
+  --info:#2f6fd6; --info-soft:#e8f0fd; --info-border:#bcd1f5; --info-onsoft:#1c3f85;
+  --blade:20px 6px 20px 6px; --blade-sm:12px 4px 12px 4px; --blade-xs:8px 3px 8px 3px;
+  --edge:3px 4px 0 var(--ink); --edge-sm:2px 3px 0 var(--ink);
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:'Baloo 2',Nunito,sans-serif;letter-spacing:-.02em;margin:0}
+a{color:var(--info)}
+code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;background:var(--paper-2);padding:1.5px 5px;border-radius:4px;color:var(--ink)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 80px}
+.masthead{border:2px solid var(--ink);border-radius:var(--blade);box-shadow:var(--edge);padding:26px;margin-bottom:24px;background:linear-gradient(150deg,var(--leaf-50),#fff 55%)}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.masthead h1{font-size:34px;font-weight:800;margin:6px 0 8px}
+.masthead p{margin:0;max-width:82ch;color:var(--ink-2)}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+.pill{font-size:11.5px;font-weight:800;padding:5px 11px;border-radius:999px;background:var(--paper-2);color:var(--ink-2);border:1.5px solid var(--line-2)}
+.pill.ok{background:var(--success-soft);color:var(--success-onsoft);border-color:var(--success-border)}
+.pill.warn{background:var(--caution-soft);color:var(--caution-onsoft);border-color:var(--caution-border)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px}
+nav.toc a{font-size:12.5px;font-weight:800;text-decoration:none;color:var(--ink-2);border:1.5px solid var(--line-2);border-radius:var(--blade-xs);padding:6px 11px;background:#fff}
+nav.toc a:hover{border-color:var(--ink);color:var(--ink)}
+section{margin-bottom:42px;scroll-margin-top:16px}
+.sec-head{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+.num{font-family:'JetBrains Mono';font-size:12px;font-weight:600;color:#fff;background:var(--ink);border-radius:var(--blade-xs);padding:3px 8px}
+.sec-head h2{font-size:23px;font-weight:800}
+.sec-head .rule{flex:1;height:2px;background:var(--line);border-radius:2px}
+.lede{color:var(--ink-2);max-width:82ch;margin:0 0 16px}
+.card{border:2px solid var(--ink);border-radius:var(--blade);box-shadow:var(--edge);background:#fff;padding:18px;margin-bottom:14px}
+.card.quiet{border:1.5px solid var(--line-2);box-shadow:none}
+.card h3{font-size:16.5px;font-weight:800;margin-bottom:10px}
+.card h4{font-size:14px;font-weight:800;margin:16px 0 6px}
+.card p{font-size:13.5px;color:var(--ink-2);margin:0 0 8px}
+.grid{display:grid;gap:14px}
+.grid>*{min-width:0}
+.card{min-width:0;max-width:100%;overflow-x:auto}
+pre.code{max-width:100%}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px 8px 0;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);border-bottom:2px solid var(--line-2);vertical-align:bottom}
+td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;padding:3px 7px;border-radius:999px;white-space:nowrap}
+.t-pass{background:var(--leaf-100);color:var(--leaf-700)}
+.t-board{background:var(--paper-2);color:var(--ink-2);border:1px solid var(--line-2)}
+.t-adr{background:var(--ink);color:#fff}
+.t-new{background:var(--info-soft);color:var(--info-onsoft)}
+.note{border-radius:var(--blade-xs);padding:11px 13px;font-size:13px;margin:12px 0}
+.note.good{background:var(--success-soft);color:var(--success-onsoft)}
+.note.warn{background:var(--caution-soft);color:var(--caution-onsoft)}
+.note.bad{background:var(--critical-soft);color:var(--critical-onsoft)}
+.note.info{background:var(--info-soft);color:var(--info-onsoft)}
+.note b{font-weight:800}
+ul.clean,ol.clean{margin:8px 0;padding-left:18px}
+ul.clean li,ol.clean li{margin-bottom:6px;color:var(--ink-2);font-size:13.5px}
+ul.clean li b,ol.clean li b{color:var(--ink)}
+pre.code{background:var(--paper-2);border-radius:var(--blade-xs);padding:12px 14px;font-family:'JetBrains Mono';font-size:11.5px;line-height:1.6;overflow-x:auto;margin:10px 0;white-space:pre}
+.adr{border-left:4px solid var(--ink);padding:4px 0 4px 14px;margin:12px 0}
+.adr h4{margin:0 0 4px}.adr p{margin:0 0 4px}
+.lab{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:10px 0 2px}
+svg text{font-family:Nunito,system-ui,sans-serif;font-size:12px;fill:var(--ink)}
+svg .mono{font-family:'JetBrains Mono';font-size:10.5px}
+svg .k{font-size:10px;fill:var(--ink-3);font-weight:800;letter-spacing:.06em}
+svg .b{font-weight:800}
+.diagram{background:#fff;border:2px solid var(--ink);border-radius:var(--blade-sm);box-shadow:var(--edge-sm);padding:10px;margin:12px 0;overflow-x:auto}
+
+/* design-system swatches and specimens */
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin:8px 0}
+.sw{border:1.5px solid var(--line-2);border-radius:var(--blade-xs);overflow:hidden;font-size:10.5px;background:#fff}
+.sw i{display:block;height:34px}
+.sw span{display:block;padding:4px 7px;font-weight:800;color:var(--ink-2)}
+.sw em{display:block;padding:0 7px 5px;font-style:normal;font-family:'JetBrains Mono';font-size:10px;color:var(--ink-4)}
+.quartet{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0}
+.q{border-radius:var(--blade-xs);padding:8px;font-size:11px;font-weight:800}
+.spec{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+.spec .t{font-family:'Baloo 2';font-weight:800;line-height:1}
+.spec .m{font-family:'JetBrains Mono'}
+/* app mock */
+.app{display:grid;min-width:0;grid-template-columns:200px 1fr;border:2px solid var(--ink);border-radius:var(--blade-sm);box-shadow:var(--edge-sm);overflow:hidden;background:#fff;margin:12px 0;min-height:300px}
+.rail{background:var(--paper-2);border-right:1.5px solid var(--line-2);padding:12px}
+.rail .brand{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.rail .mark{width:26px;height:26px;border-radius:7px;background:var(--leaf);color:#fff;font-family:'Baloo 2';font-weight:800;display:flex;align-items:center;justify-content:center;font-size:14px}
+.rail .nm{font-family:'Baloo 2';font-weight:800;font-size:13px;line-height:1.1}
+.rail .sub{font-size:9.5px;color:var(--ink-3);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.rail .grp{font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);margin:12px 0 4px}
+.rail .it{font-size:12px;font-weight:700;padding:6px 8px;border-radius:6px;color:var(--ink-2)}
+.rail .it.on{background:var(--leaf);color:#fff}
+.main{padding:12px 14px;min-width:0;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2);padding-bottom:8px;border-bottom:1.5px solid var(--line);margin-bottom:10px}
+.chip{font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1.5px solid var(--line-2);background:#fff;white-space:nowrap}
+.chip.ok{background:var(--success-soft);border-color:var(--success-border);color:var(--success-onsoft)}
+.chip.wait{background:var(--caution-soft);border-color:var(--caution-border);color:var(--caution-onsoft)}
+.chip.bad{background:var(--critical-soft);border-color:var(--critical-border);color:var(--critical-onsoft)}
+.chip.grey{background:var(--paper-2);color:var(--ink-3)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.tile{border:2px solid var(--ink);box-shadow:var(--edge-sm);border-radius:var(--blade-xs);padding:8px 10px;background:#fff}
+.tile .k{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
+.tile .v{font-family:'Baloo 2';font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
+.board{border:1.5px solid var(--line-2);border-radius:6px;overflow:hidden;margin-top:8px}
+.brow{display:grid;grid-template-columns:70px 64px 1fr 70px 50px;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);font-size:11px}
+.brow:last-child{border-bottom:0}
+.brow.h{background:var(--paper-2);font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.brow .m{font-family:'JetBrains Mono';font-size:10.5px}
+.foot{margin-top:46px;padding-top:16px;border-top:2px solid var(--line);font-size:12px;color:var(--ink-4);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="masthead">
+  <div class="eyebrow">Chat to paid order · Technical design · Admin panel (web) · v1 · 27 Oct 2026</div>
+  <h1>The vendor's panel: a board she watches and a few things she edits</h1>
+  <p>
+    React 19 + TypeScript on Vite, TanStack Router for routes, TanStack Query for data, Tailwind v4 for
+    styling, deployed to Netlify from <code>/frontend</code>. It talks only to the backend's REST + SSE API
+    (<a href="tech-spec-backend.html">tech-spec-backend.html</a> §11). This document is the contract for the
+    app: decisions, folder structure, routing, the data layer and how it stays live, auth, the design system
+    adapted from Ohlify's contracts with this product's skin, every screen with every state, the error
+    contract, build, deploy and tests. Plan: <a href="plan.html">plan.html</a>.
+  </p>
+  <div class="pills">
+    <span class="pill ok">React 19 · TS strict · Vite 6 · TanStack Router + Query · Tailwind v4</span>
+    <span class="pill ok">Netlify, base /frontend</span>
+    <span class="pill">Light only, color-scheme: light</span>
+    <span class="pill">Ohlify contracts, leaf skin</span>
+    <span class="pill warn">Reads live via SSE, polls when degraded</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <a href="#s0">00 Context</a>
+  <a href="#s1">01 Decisions</a>
+  <a href="#s2">02 Structure</a>
+  <a href="#s3">03 Routing</a>
+  <a href="#s4">04 Data layer</a>
+  <a href="#s5">05 Live updates</a>
+  <a href="#s6">06 Auth</a>
+  <a href="#s7">07 Design system</a>
+  <a href="#s8">08 Components</a>
+  <a href="#s9">09 Screens and states</a>
+  <a href="#s10">10 Errors and feedback</a>
+  <a href="#s11">11 Seam contract</a>
+  <a href="#s12">12 Performance and a11y</a>
+  <a href="#s12b">12b Responsive and motion</a>
+  <a href="#s13">13 Build, env, deploy</a>
+  <a href="#s14">14 Tests</a>
+</nav>
+
+<!-- ───────────────────────────── -->
+<section id="s0">
+  <div class="sec-head"><span class="num">00</span><h2>Context</h2><span class="rule"></span></div>
+  <p class="lede">One user (the vendor, or Feranmi during the demo). One device class that matters (a phone propped in a kitchen) and one that matters for the recording (a laptop). The panel is read-mostly: it watches orders arrive and lets the vendor fix stock, settings and the rare order that needs her.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1120 250" width="100%" height="250">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1b2430"/></marker></defs>
+      <rect x="20" y="40" width="300" height="170" rx="14" fill="#f0f8f3" stroke="#1b2430" stroke-width="2"/>
+      <text x="170" y="64" text-anchor="middle" class="b" style="font-size:14px">Browser · Netlify static</text>
+      <rect x="40" y="80" width="260" height="34" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="170" y="102" text-anchor="middle" class="mono">TanStack Router · 7 routes · auth guard</text>
+      <rect x="40" y="122" width="260" height="34" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="170" y="144" text-anchor="middle" class="mono">TanStack Query · keys · invalidation</text>
+      <rect x="40" y="164" width="125" height="34" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="102" y="186" text-anchor="middle" class="mono">api client</text>
+      <rect x="175" y="164" width="125" height="34" rx="8" fill="#fdf2df" stroke="#1b2430" stroke-width="1.5"/><text x="237" y="186" text-anchor="middle" class="mono">sse stream</text>
+      <rect x="520" y="40" width="300" height="170" rx="14" fill="#fff" stroke="#1b2430" stroke-width="2"/>
+      <text x="670" y="64" text-anchor="middle" class="b" style="font-size:14px">Backend · Railway</text>
+      <rect x="540" y="80" width="260" height="34" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="670" y="102" text-anchor="middle" class="mono">/api/v1/* JSON · Bearer JWT · CORS</text>
+      <rect x="540" y="122" width="260" height="34" rx="8" fill="#fdf2df" stroke="#1b2430" stroke-width="1.5"/><text x="670" y="144" text-anchor="middle" class="mono">/api/v1/events  text/event-stream</text>
+      <rect x="540" y="164" width="260" height="34" rx="8" fill="#fff" stroke="#1b2430" stroke-width="1.5"/><text x="670" y="186" text-anchor="middle" class="mono">Postgres · Redis</text>
+      <line x1="165" y1="181" x2="538" y2="97" stroke="#1b2430" stroke-width="2" marker-end="url(#ar)"/>
+      <line x1="538" y1="139" x2="302" y2="181" stroke="#1b2430" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+      <text x="330" y="120" class="k">fetch, JSON, 10 s timeout</text>
+      <text x="330" y="170" class="k">events (ids only) → invalidate</text>
+      <rect x="900" y="80" width="200" height="90" rx="10" fill="#f1eafe" stroke="#1b2430" stroke-width="2"/>
+      <text x="1000" y="106" text-anchor="middle" class="b">Not this app</text>
+      <text x="1000" y="126" text-anchor="middle" style="font-size:11px">Chord, WhatsApp, the</text>
+      <text x="1000" y="142" text-anchor="middle" style="font-size:11px">customer, Paystack checkout</text>
+      <text x="1000" y="158" text-anchor="middle" style="font-size:11px">never touch the panel</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s1">
+  <div class="sec-head"><span class="num">01</span><h2>Decisions</h2><span class="rule"></span></div>
+  <div class="card">
+    <div class="adr"><h4><span class="tag t-adr">ADR-W1</span> Separate deployable in <code>/frontend</code>, Netlify, no root build files</h4><p><b>Why:</b> static hosting with deploy previews for free, zero coupling to the Go build, and a CDN edge for the kitchen's phone. Everything the app needs (<code>package.json</code>, <code>netlify.toml</code>, <code>vite.config.ts</code>, lockfile) lives inside <code>frontend/</code>. The repo root stays <code>README.md</code>, <code>.gitignore</code>, <code>docs/</code>.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W2</span> TanStack Query owns every byte of server state; React state owns only UI state</h4><p><b>Why:</b> no Redux, no Zustand, no duplicated caches. A screen is a composition of query hooks plus local <code>useState</code> for things like "which row is expanded". Mutations invalidate by key; SSE invalidates by key; the two never fight because invalidation is idempotent.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W3</span> SSE carries ids, not payloads; every event is a refetch</h4><p><b>Why:</b> a missed or reordered event can never show a wrong number, only a late one. The cost is one small GET per event, which at ≤ 60 orders a day is nothing. When SSE is down the same keys poll every 30 s.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W4</span> Bearer JWT in memory, mirrored to <code>localStorage</code>; no cookies</h4><p><b>Why:</b> Netlify and Railway are different origins; a cookie would need <code>SameSite=None</code> and a CSRF story. A bearer header is simpler, the backend revokes on logout, and the panel holds no customer PII beyond what the order rows show. <code>localStorage</code> access is wrapped in try/catch and the app works without it (login per tab).</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W5</span> Ohlify's contracts, this product's skin</h4><p><b>Why:</b> the PASS/BOARD law, the semantic quartet, the disabled/readOnly/error triad and the overlay contract are the parts of Ohlify that stop a team improvising. The violet, Mona Sans and hairline-first elevation are Ohlify's identity, not ours. We keep the laws, swap the tokens, and add one rule: PASS blocks get the 2 px ink border and offset shadow; BOARD blocks get hairlines.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W6</span> Feature-sliced folders, file-based routes, no barrels in features</h4><p><b>Why:</b> a feature is deletable with one <code>rm -rf</code>. Routes are thin files that import a screen. Shared code is promoted only when a second feature needs it.</p></div>
+    <div class="adr"><h4><span class="tag t-adr">ADR-W7</span> Money and time are formatted by the backend; the UI renders strings</h4><p><b>Why:</b> one formatter, one timezone, no <code>Intl</code> drift between the WhatsApp reply and the board. The UI uses <code>*_display</code> and <code>*_wat</code> fields and never divides by 100.</p></div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s2">
+  <div class="sec-head"><span class="num">02</span><h2>Structure</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3><code>frontend/</code></h3>
+      <pre class="code">frontend/
+  package.json  pnpm-lock.yaml  .npmrc (minimum-release-age=10080)
+  netlify.toml  vite.config.ts  tsconfig.json  tsconfig.app.json
+  index.html  .env.example  eslint.config.js  vitest.config.ts  playwright.config.ts
+  public/                 favicon.svg, manifest.webmanifest (so it pins to a phone home screen)
+  src/
+    main.tsx              QueryClientProvider, RouterProvider, Toaster
+    routes/               file-based (TanStack Router plugin)
+      __root.tsx          shell: AuthGate + AppShell + Outlet + devtools
+      login.tsx
+      index.tsx           board (today)
+      orders.index.tsx    orders list
+      orders.$orderNo.tsx order detail
+      menu.tsx
+      settings.tsx
+      activity.tsx
+    features/
+      auth/        api/use-login.ts use-logout.ts use-me.ts · providers/auth-provider.tsx · guards/auth-guard.tsx · screen/login-screen.tsx
+      board/       screen/board-screen.tsx · parts/stat-strip/ parts/orders-today/ parts/stock-strip/ parts/recent-activity/ · api/use-stats-today.ts
+      orders/      screen/orders-screen.tsx order-detail-screen.tsx · parts/… · widgets/OrderRow.tsx OrderStatusChip.tsx · api/use-orders.ts use-order.ts use-resolve-order.ts use-cancel-order.ts
+      menu/        screen/menu-screen.tsx · parts/item-table/ item-editor/ · api/use-menu.ts use-create-item.ts use-update-item.ts
+      settings/    screen/settings-screen.tsx · parts/windows-form/ zones-table/ · api/use-vendor.ts use-update-vendor.ts use-zones.ts
+      activity/    screen/activity-screen.tsx · widgets/ToolCallRow.tsx · api/use-activity.ts
+      live/        utils/use-event-stream.ts · providers/live-provider.tsx · widgets/LiveChip.tsx
+      admin/       api/use-reset.ts · widgets/ResetButton.tsx
+    shared/
+      api/         client.ts (fetch wrapper) · endpoints.ts (EP) · keys.ts (query keys) · types.ts (wire types) · errors.ts (ApiError + identities)
+      ui/          Button Card Pass Board StatTile StatusChip Money Field Input Switch Modal Drawer Toast Skeleton EmptyState ErrorState Table Pagination · icons/index.ts (lucide proxy)
+      utils/       cn.ts · storage.ts (safe localStorage) · routes.ts (ROUTES) · format.ts (relative time only)
+      hooks/       use-document-title.ts · use-media.ts
+    styles/
+      tokens.css   every CSS variable (§07)
+      base.css     reset, fonts, color-scheme: light
+      tailwind.css @theme mapping tokens → Tailwind</pre>
+    </div>
+    <div class="card">
+      <h3>Dependencies, pinned</h3>
+      <table>
+        <thead><tr><th style="width:46%">Package</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>react</code>, <code>react-dom</code> 19</td><td>Actions, <code>use()</code>, no legacy context</td></tr>
+          <tr><td><code>@tanstack/react-router</code> + <code>@tanstack/router-plugin</code></td><td>Typed file-based routes, search params, loaders</td></tr>
+          <tr><td><code>@tanstack/react-query</code> + devtools</td><td>Server state</td></tr>
+          <tr><td><code>tailwindcss</code> 4 + <code>@tailwindcss/vite</code></td><td>Utility styling over our tokens</td></tr>
+          <tr><td><code>meemaw</code></td><td><code>&lt;Show&gt;</code>, <code>&lt;Repeat&gt;</code>; no <code>&amp;&amp;</code>, no bare <code>.map</code> in JSX</td></tr>
+          <tr><td><code>lucide-react</code></td><td>Icons, imported only through <code>shared/ui/icons</code></td></tr>
+          <tr><td><code>zod</code></td><td>Parse every API response at the seam; form validation</td></tr>
+          <tr><td><code>clsx</code> + <code>tailwind-merge</code></td><td><code>cn()</code></td></tr>
+          <tr><td><code>sonner</code></td><td>Toasts, restyled with the quartet</td></tr>
+          <tr><td><code>motion</code></td><td>Layout animations, presence, drawer gesture (§12b)</td></tr>
+          <tr><td>dev: <code>vitest</code>, <code>@testing-library/react</code>, <code>msw</code>, <code>playwright</code>, <code>typescript</code> 5.7, <code>eslint</code> + <code>typescript-eslint</code></td><td>Tests, mocks, lint</td></tr>
+        </tbody>
+      </table>
+      <h4>TypeScript</h4>
+      <pre class="code">"strict": true, "noUncheckedIndexedAccess": true, "exactOptionalPropertyTypes": true,
+"noImplicitOverride": true, "noFallthroughCasesInSwitch": true, "noImplicitReturns": true,
+"verbatimModuleSyntax": true, "moduleResolution": "Bundler",
+"paths": { "@app/*": ["src/*"], "@features/*": ["src/features/*"], "@shared/*": ["src/shared/*"], "@icons": ["src/shared/ui/icons"] }</pre>
+      <p>ESLint: <code>no-explicit-any: error</code>, <code>consistent-type-imports</code>, <code>no-restricted-imports</code> banning <code>lucide-react</code> outside the proxy and relative paths deeper than two levels.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s3">
+  <div class="sec-head"><span class="num">03</span><h2>Routing</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Route table</h3>
+      <table>
+        <thead><tr><th style="width:26%">Path</th><th style="width:24%">Screen</th><th>Search params · notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>/login</code></td><td><code>LoginScreen</code></td><td><code>?next=</code> (validated to an internal path). Redirects to <code>/</code> if already authed.</td></tr>
+          <tr><td><code>/</code></td><td><code>BoardScreen</code></td><td>Today. No params.</td></tr>
+          <tr><td><code>/orders</code></td><td><code>OrdersScreen</code></td><td><code>?status=paid,paid_needs_attention&amp;cursor=</code>. Status is a zod enum array; cursor opaque.</td></tr>
+          <tr><td><code>/orders/$orderNo</code></td><td><code>OrderDetailScreen</code></td><td><code>$orderNo</code> validated <code>^[A-Z]{2,5}-\d{4,}$</code>; anything else → not-found component.</td></tr>
+          <tr><td><code>/menu</code></td><td><code>MenuScreen</code></td><td><code>?edit=jollof</code> opens the editor drawer; deep-linkable.</td></tr>
+          <tr><td><code>/settings</code></td><td><code>SettingsScreen</code></td><td>No params.</td></tr>
+          <tr><td><code>/activity</code></td><td><code>ActivityScreen</code></td><td><code>?tool=&amp;ok=&amp;cursor=</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>Every route except <code>/login</code> sits under a pathless layout route <code>_authed</code> whose <code>beforeLoad</code> checks the auth store and throws <code>redirect({ to: '/login', search: { next } })</code>. Search params are declared with <code>validateSearch</code> (zod) so they are typed everywhere they are read.</p>
+    </div>
+    <div class="card">
+      <h3>Loaders and the query client</h3>
+      <pre class="code">// routes/orders.$orderNo.tsx
+export const Route = createFileRoute('/_authed/orders/$orderNo')({
+  params: { parse: ({ orderNo }) => ({ orderNo: OrderNo.parse(orderNo) }) },
+  loader: ({ context: { queryClient }, params }) =>
+    queryClient.ensureQueryData(orderQuery(params.orderNo)),   // prefetch, cached
+  pendingComponent: OrderDetailSkeleton,
+  errorComponent: RouteErrorState,
+  notFoundComponent: OrderNotFound,
+  component: OrderDetailScreen,
+})</pre>
+      <ul class="clean">
+        <li>Loaders only <code>ensureQueryData</code>; the screen still calls <code>useQuery</code> with the same key so SSE invalidation re-renders it.</li>
+        <li><code>pendingMs: 150</code>, <code>pendingMinMs: 300</code> so the skeleton neither flashes nor flickers.</li>
+        <li>Navigation preserves scroll on back; <code>scrollRestoration: true</code>.</li>
+        <li><code>ROUTES</code> constants in <code>shared/utils/routes.ts</code>; no string paths in <code>&lt;Link&gt;</code>.</li>
+      </ul>
+      <h4>The shell</h4>
+      <pre class="code">&lt;AppShell&gt;              // 220 px rail on ≥ 1024 px, bottom tab bar on phones
+  &lt;Rail&gt;   Board · Orders · Menu · Settings · Activity
+  &lt;Topbar&gt; vendor name · window chip ("Lunch · orders close 14:30") · &lt;LiveChip/&gt; · &lt;ResetButton/&gt; · account menu
+  &lt;Outlet/&gt;
+&lt;/AppShell&gt;</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s4">
+  <div class="sec-head"><span class="num">04</span><h2>Data layer</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Client</h3>
+      <pre class="code">// shared/api/client.ts
+export async function api&lt;T&gt;(path: string, init: ApiInit = {}): Promise&lt;T&gt; {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 10_000);
+  const res = await fetch(`${BASE}${path}`, {
+    ...init, signal: ctrl.signal,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json',
+      ...(auth.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+      ...(init.idempotencyKey ? { 'Idempotency-Key': init.idempotencyKey } : {}),
+      ...(init.ifMatch !== undefined ? { 'If-Match': `"${init.ifMatch}"` } : {}),
+      ...init.headers },
+  }).finally(() => clearTimeout(t));
+  if (res.status === 204) return undefined as T;
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) throw ApiError.from(res, body);        // §10
+  return init.schema ? init.schema.parse(body) : (body as T);
+}</pre>
+      <ul class="clean">
+        <li><code>BASE</code> = <code>import.meta.env.VITE_API_BASE_URL</code>, validated at boot by zod (must be https in production).</li>
+        <li>Every hook passes a zod <code>schema</code>; a parse failure is an <code>ApiError</code> with identity <code>contract_drift</code> and is reported, not swallowed.</li>
+        <li>401 anywhere → <code>auth.clear()</code> and redirect to <code>/login?next=</code>, except on <code>/auth/login</code> itself.</li>
+        <li>Mutations send a fresh <code>crypto.randomUUID()</code> as <code>Idempotency-Key</code> per user action, reused across retries of that action.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Query keys and defaults</h3>
+      <pre class="code">// shared/api/keys.ts
+export const K = {
+  me:        ['me'] as const,
+  vendor:    ['vendor'] as const,
+  menu:      ['menu'] as const,
+  zones:     ['zones'] as const,
+  stats:     ['stats','today'] as const,
+  orders:    (f: OrdersFilter) => ['orders', f] as const,
+  ordersAll: ['orders'] as const,
+  order:     (no: string) => ['order', no] as const,
+  activity:  (f: ActivityFilter) => ['activity', f] as const,
+  activityAll: ['activity'] as const,
+};
+
+new QueryClient({ defaultOptions: { queries: {
+  staleTime: 5_000, gcTime: 5 * 60_000,
+  refetchOnWindowFocus: true, refetchOnReconnect: true,
+  retry: (n, err) => n &lt; 2 &amp;&amp; isRetryable(err),      // never retry 4xx
+}}})</pre>
+      <table>
+        <thead><tr><th style="width:36%">Hook</th><th>Endpoint · invalidates</th></tr></thead>
+        <tbody>
+          <tr><td><code>useStatsToday()</code></td><td><code>GET /stats/today</code></td></tr>
+          <tr><td><code>useOrders(filter)</code></td><td><code>GET /orders</code>, <code>useInfiniteQuery</code> on <code>meta.next_cursor</code></td></tr>
+          <tr><td><code>useOrder(no)</code></td><td><code>GET /orders/:no</code></td></tr>
+          <tr><td><code>useResolveOrder()</code> / <code>useCancelOrder()</code></td><td><code>POST …/resolve</code> · <code>…/cancel</code> → invalidate <code>order(no)</code>, <code>ordersAll</code>, <code>stats</code></td></tr>
+          <tr><td><code>useMenu()</code> · <code>useCreateItem()</code> · <code>useUpdateItem()</code></td><td><code>GET/POST/PATCH /menu</code> → invalidate <code>menu</code>, <code>stats</code></td></tr>
+          <tr><td><code>useVendor()</code> · <code>useUpdateVendor()</code></td><td><code>GET/PUT /vendor</code> → invalidate <code>vendor</code>, <code>menu</code>, <code>stats</code></td></tr>
+          <tr><td><code>useActivity(filter)</code></td><td><code>GET /activity</code>, infinite</td></tr>
+          <tr><td><code>useReset()</code></td><td><code>POST /admin/reset</code> → <code>queryClient.invalidateQueries()</code> (everything)</td></tr>
+        </tbody>
+      </table>
+      <h4>Optimistic updates: two, deliberately</h4>
+      <p><code>useUpdateItem</code> for <code>available</code> toggles and <code>portions</code> edits applies optimistically with <code>If-Match</code>; on 409 it rolls back and shows "Changed elsewhere, reloaded" with the server's current value. Nothing else is optimistic: resolving or cancelling an order waits for the server, because the board is the vendor's record.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s5">
+  <div class="sec-head"><span class="num">05</span><h2>Live updates</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>The stream</h3>
+      <pre class="code">// features/live/utils/use-event-stream.ts
+// fetch + ReadableStream reader, because EventSource cannot send Authorization.
+state: 'connecting' | 'live' | 'degraded' | 'offline'
+connect():
+  GET /api/v1/events  (Authorization, Last-Event-ID if we have one)
+  parse "event:" / "data:" / "id:" frames; comment lines are heartbeats
+on open:  state=live; queryClient.invalidateQueries()      // full refetch on every (re)connect
+on event:
+  order.created | order.updated → invalidate ordersAll, stats, order(order_no)
+  menu.updated                  → invalidate menu, stats
+  settings.updated              → invalidate vendor, menu, stats
+  reset                         → invalidate everything
+  degraded {on:true}            → state=degraded (polling kicks in); {on:false} → live
+on error/close: backoff 1s → 2s → 4s → … 30s, jittered; state=connecting; after 3 failures state=offline
+heartbeat watchdog: no bytes for 45 s → close and reconnect</pre>
+      <ul class="clean">
+        <li>One stream per tab, owned by <code>LiveProvider</code> under the authed layout; torn down on logout.</li>
+        <li>Pauses when <code>document.hidden</code> for &gt; 60 s and reconnects on visibility, which is also a full refetch.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Polling as the fallback, not the default</h3>
+      <pre class="code">const live = useLive();                       // from LiveProvider
+useQuery({ ...statsQuery, refetchInterval: live.state === 'live' ? false : 30_000 });</pre>
+      <p>Board, orders list and activity use this pattern. Detail, menu and settings do not poll; they refetch on focus and on events.</p>
+      <h4>What the vendor sees</h4>
+      <table>
+        <thead><tr><th style="width:24%">State</th><th>LiveChip</th></tr></thead>
+        <tbody>
+          <tr><td><code>live</code></td><td>Green dot, "Live"</td></tr>
+          <tr><td><code>degraded</code></td><td>Amber dot, "Live updates paused, refreshing every 30 s"</td></tr>
+          <tr><td><code>connecting</code></td><td>Grey pulsing dot, "Connecting"</td></tr>
+          <tr><td><code>offline</code></td><td>Red dot, "Offline, showing last known", plus a Retry</td></tr>
+        </tbody>
+      </table>
+      <div class="note good" style="margin-bottom:0"><b>Flip, never tween.</b> When a count changes from 18 to 16 it changes in one frame. No count-up animations on money or stock, ever. A new order row slides in (280 ms, ease-out), which is motion on the container, not on the figure.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s6">
+  <div class="sec-head"><span class="num">06</span><h2>Auth</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Flow</h3>
+      <ol class="clean">
+        <li>Boot: read <code>auth.token</code> from <code>storage.get('ctpo.token')</code> (try/catch). If present, <code>GET /auth/me</code>; 200 → authed, 401 → clear.</li>
+        <li><code>/login</code>: email + password form (zod), <code>POST /auth/login</code>. On success store <code>{token, expires_at, admin}</code> in the provider and mirror the token to storage. Navigate to <code>next</code> or <code>/</code>.</li>
+        <li>Every request adds the bearer. Any 401 clears and redirects with <code>next</code>.</li>
+        <li>Logout: <code>POST /auth/logout</code> (revokes <code>jti</code>), then clear, then close the SSE stream, then navigate to <code>/login</code>.</li>
+        <li>A timer at <code>expires_at − 5 min</code> shows a quiet "session ends soon, sign in again" banner. No silent refresh (there is no refresh token).</li>
+      </ol>
+      <pre class="code">// features/auth/providers/auth-provider.tsx
+interface AuthValue { status: 'loading'|'anon'|'authed'; admin: Admin|null; token: string|null;
+                      login(email, password): Promise&lt;void&gt;; logout(): Promise&lt;void&gt; }</pre>
+    </div>
+    <div class="card">
+      <h3>Rules</h3>
+      <ul class="clean">
+        <li>The token is never put in a URL, a log, or a query key.</li>
+        <li><code>storage.ts</code> wraps <code>localStorage</code>; every call is try/catch and returns <code>null</code> on failure. Private mode works, with login per tab.</li>
+        <li>Rate-limit 429 on login shows the real <code>Retry-After</code> seconds and disables the button for that long.</li>
+        <li>The login screen is the only route outside the authed layout. There is no sign-up, no forgot-password (one admin, set by env; documented in the go-live note).</li>
+      </ul>
+      <div class="note warn" style="margin-bottom:0"><b>Deploy previews</b> on Netlify get their own origin. The backend's CORS allowlist matches <code>*.netlify.app</code> by suffix for previews, so a preview can log in against the Railway backend with the same admin.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s7">
+  <div class="sec-head"><span class="num">07</span><h2>Design system: Ohlify's laws, this product's skin</h2><span class="rule"></span></div>
+  <p class="lede">From Ohlify we take the contracts. From the plan we take the look: leaf green, Nunito, Baloo 2, JetBrains Mono, warm paper, 2 px ink borders, offset shadows, light only.</p>
+
+  <div class="card">
+    <h3>The laws we keep</h3>
+    <table>
+      <thead><tr><th style="width:26%">Law</th><th>Meaning here</th></tr></thead>
+      <tbody>
+        <tr><td><b>Two zones: PASS and BOARD</b></td><td>A <span class="tag t-pass">PASS</span> is what one person holds: a stat tile, an order's total, the login card, a settings form. Fierce hierarchy, one big figure, 2 px ink border, offset shadow, radius 12/8. A <span class="tag t-board">BOARD</span> is what an operator scans: the orders list, the menu table, the activity log. Columnar, hairline-ruled, tabular numerals, radius 8/4, many rows at one weight. A screen may hold both; a single block belongs to exactly one. A board row never gets a display-size figure; a stub never appears in a table cell.</td></tr>
+        <tr><td><b>A live figure flips, never tweens</b></td><td>Stock counts, totals, order counts update digit-in-place. No count-up, no number tween.</td></tr>
+        <tr><td><b>The semantic enum, five values, each a quartet</b></td><td><code>neutral · info · success · caution · critical</code>, each with <code>base / soft / onSoft / border</code>. Used verbatim by chip, badge, callout, toast, banner, form validation. No component mixes its own tint.</td></tr>
+        <tr><td><b>Hazard is never a button</b></td><td>"Needs attention" is a state the system reports in critical red. The only red button is a destructive confirm (Cancel order, Reset demo), which needs a typed word.</td></tr>
+        <tr><td><b>disabled / readOnly / error are independent</b></td><td>Every input takes all three. A <code>readOnly</code> field keeps full ink contrast (the order number, the Paystack reference). <code>readOnly + error</code> is allowed.</td></tr>
+        <tr><td><b>Variant × modifier, never a flat cross-product</b></td><td>Button: <code>variant: solid | outline | plain | ghost</code>, <code>destructive: boolean</code>, <code>size: sm | md | lg</code>. No <code>textStyle</code> or <code>radius</code> escape hatches.</td></tr>
+        <tr><td><b>One overlay contract</b></td><td>Modal, drawer, popover, menu: <code>open / onOpenChange / Trigger / Portal / Content</code>. Scrim 0→.5 in 200 ms; content scale .96→1 + fade in 280 ms ease-out, trailing the scrim by 40 ms.</td></tr>
+        <tr><td><b>Typed confirm for the irreversible</b></td><td>Cancel order: type <code>CANCEL</code>. Reset demo: type <code>RESET</code>. Button disabled until exact match.</td></tr>
+        <tr><td><b>Every data component ships its own skeleton</b></td><td>Not one shimmer box. <code>StatTile.Skeleton</code>, <code>OrderRow.Skeleton</code>, <code>ToolCallRow.Skeleton</code> match the real layout.</td></tr>
+      </tbody>
+    </table>
+    <div class="note info"><b>The one reconciliation.</b> Ohlify is hairline-first and reserves shadow for overlays. This product wants 2 px ink borders and offset shadows. Resolution: <b>PASS blocks carry the ink border and the offset shadow</b> (they are card stock); <b>BOARD blocks carry hairlines only</b> (they are instruments). Overlays get the ink border and a larger offset. Nothing else gets a shadow.</div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>Tokens (<code>styles/tokens.css</code>)</h3>
+      <div class="lab">Paper and ink</div>
+      <div class="sw-grid">
+        <div class="sw"><i style="background:#fbfaf7;border-bottom:1px solid #e6e2d8"></i><span>paper</span><em>#fbfaf7</em></div>
+        <div class="sw"><i style="background:#f3f1ea"></i><span>paper-2</span><em>#f3f1ea</em></div>
+        <div class="sw"><i style="background:#ebe8df"></i><span>paper-3</span><em>#ebe8df</em></div>
+        <div class="sw"><i style="background:#ffffff;border-bottom:1px solid #e6e2d8"></i><span>card</span><em>#ffffff</em></div>
+        <div class="sw"><i style="background:#1b2430"></i><span>ink</span><em>#1b2430</em></div>
+        <div class="sw"><i style="background:#3d4c5c"></i><span>ink-2</span><em>#3d4c5c</em></div>
+        <div class="sw"><i style="background:#6b7a89"></i><span>ink-3</span><em>#6b7a89</em></div>
+        <div class="sw"><i style="background:#9aa7b3"></i><span>ink-4</span><em>#9aa7b3</em></div>
+        <div class="sw"><i style="background:#e6e2d8"></i><span>line</span><em>#e6e2d8</em></div>
+        <div class="sw"><i style="background:#d3cec1"></i><span>line-2</span><em>#d3cec1</em></div>
+      </div>
+      <div class="lab">Leaf ramp (accent)</div>
+      <div class="sw-grid">
+        <div class="sw"><i style="background:#f0f8f3"></i><span>leaf-50</span><em>#f0f8f3</em></div>
+        <div class="sw"><i style="background:#dff1e6"></i><span>leaf-100</span><em>#dff1e6</em></div>
+        <div class="sw"><i style="background:#b9e2c9"></i><span>leaf-200</span><em>#b9e2c9</em></div>
+        <div class="sw"><i style="background:#8ccfa8"></i><span>leaf-300</span><em>#8ccfa8</em></div>
+        <div class="sw"><i style="background:#1f8a5b"></i><span>leaf-500 · acc</span><em>#1f8a5b</em></div>
+        <div class="sw"><i style="background:#19754d"></i><span>leaf-600 · hover</span><em>#19754d</em></div>
+        <div class="sw"><i style="background:#14603f"></i><span>leaf-700 · on-soft</span><em>#14603f</em></div>
+        <div class="sw"><i style="background:#0b3a25"></i><span>leaf-900</span><em>#0b3a25</em></div>
+      </div>
+      <div class="lab">Semantic quartets</div>
+      <div class="quartet">
+        <div class="q" style="background:#f3f1ea;color:#3d4c5c;border:1.5px solid #d3cec1">neutral</div>
+        <div class="q" style="background:#e8f0fd;color:#1c3f85;border:1.5px solid #bcd1f5">info</div>
+        <div class="q" style="background:#e3f4ea;color:#14603f;border:1.5px solid #b4dfc6">success</div>
+        <div class="q" style="background:#fdf2df;color:#7a4b07;border:1.5px solid #f3d6a0">caution</div>
+        <div class="q" style="background:#fde9e9;color:#8a1f1f;border:1.5px solid #f5bcbc">critical</div>
+      </div>
+      <pre class="code">--sem-success: #1f8a5b;  --sem-success-soft: #e3f4ea;  --sem-success-on-soft: #14603f;  --sem-success-border: #b4dfc6;
+--sem-caution: #d98c1f;  --sem-caution-soft: #fdf2df;  --sem-caution-on-soft: #7a4b07;  --sem-caution-border: #f3d6a0;
+--sem-critical: #d64545; --sem-critical-soft: #fde9e9; --sem-critical-on-soft: #8a1f1f; --sem-critical-border: #f5bcbc;
+--sem-info: #2f6fd6;     --sem-info-soft: #e8f0fd;     --sem-info-on-soft: #1c3f85;     --sem-info-border: #bcd1f5;
+--sem-neutral: #6b7a89;  --sem-neutral-soft: #f3f1ea;  --sem-neutral-on-soft: #3d4c5c;  --sem-neutral-border: #d3cec1;
+--danger: #c0392b; --danger-hover: #a93226;         /* destructive buttons only */
+--focus-ring: 0 0 0 3px rgba(31,138,91,.28);</pre>
+      <p>Status → semantic: <code>paid → success</code>, <code>pending_payment → caution</code>, <code>paid_needs_attention → critical</code>, <code>resolved → success (outline)</code>, <code>cancelled / expired → neutral</code>. Low stock → caution; zero stock → critical.</p>
+    </div>
+    <div class="card">
+      <h3>Type, geometry, motion</h3>
+      <div class="spec">
+        <span class="t" style="font-size:34px">₦41,900</span>
+        <span class="t" style="font-size:24px">Board</span>
+        <span class="t" style="font-size:18px">Orders today</span>
+        <span style="font-size:14px">Body Nunito 14/1.55</span>
+        <span class="m" style="font-size:12px">IBK-0231-a1b2</span>
+      </div>
+      <pre class="code">--f-text:    'Nunito', system-ui, sans-serif;          /* body, labels, buttons */
+--f-display: 'Baloo 2', 'Nunito', sans-serif;          /* headings and every figure */
+--f-mono:    'JetBrains Mono', ui-monospace, monospace; /* references, ids, JSON, times */
+
+--t-display: 34px/1.0 800   --t-title: 24px/1.1 800   --t-heading: 18px/1.2 800
+--t-body: 14px/1.55 400     --t-label: 12px/1.3 700   --t-caption: 11px/1.3 700 +.06em upper
+figures: font-variant-numeric: tabular-nums  (always, both faces)
+
+--s-1: 2px  --s-2: 4px  --s-3: 8px  --s-4: 12px  --s-5: 16px  --s-6: 20px  --s-7: 24px  --s-8: 32px  --s-9: 40px
+--r-xs: 4px  --r-sm: 8px  --r-md: 12px  --r-lg: 16px  --r-pill: 999px
+--blade: 20px 6px 20px 6px   --blade-sm: 12px 4px 12px 4px   --blade-xs: 8px 3px 8px 3px   /* PASS corners */
+
+--border-pass: 2px solid var(--ink)       --shadow-pass: 3px 4px 0 var(--ink)
+--border-board: 1px solid var(--line)     --shadow-board: none
+--shadow-overlay: 5px 6px 0 var(--ink)
+
+--d-instant: 100ms  --d-fast: 180ms  --d-base: 280ms  --d-slow: 450ms
+--e-standard: cubic-bezier(.22,.61,.36,1)
+control height: PASS 44px · BOARD 34px      row rhythm: PASS 12px · BOARD 6px
+z: base 0 · sticky 100 · header 200 · drawer 300 · scrim 400 · modal 500 · popover 600 · toast 700</pre>
+      <p>Fonts load from Google Fonts with <code>display=swap</code> and are preconnected in <code>index.html</code>. <code>html { color-scheme: light }</code>; there is no dark palette and no <code>prefers-color-scheme</code> block, deliberately.</p>
+      <h4>Tailwind mapping</h4>
+      <pre class="code">/* styles/tailwind.css */
+@import "tailwindcss";
+@theme {
+  --color-paper: var(--paper); --color-ink: var(--ink); --color-leaf: var(--leaf); …
+  --font-text: var(--f-text); --font-display: var(--f-display); --font-mono: var(--f-mono);
+  --radius-blade: var(--blade); …
+}</pre>
+      <p>Components use Tailwind utilities over these names (<code>bg-paper text-ink font-display</code>), never raw hex. <code>cn()</code> for every conditional class.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s8">
+  <div class="sec-head"><span class="num">08</span><h2>Components</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Shared (<code>shared/ui</code>)</h3>
+      <table>
+        <thead><tr><th style="width:26%">Component</th><th style="width:12%">Zone</th><th>API, in brief</th></tr></thead>
+        <tbody>
+          <tr><td><code>Pass</code></td><td><span class="tag t-pass">pass</span></td><td>Root + <code>Pass.Label</code> <code>Pass.Figure</code> <code>Pass.Meta</code> <code>Pass.Actions</code>. Ink border, offset shadow, blade corners.</td></tr>
+          <tr><td><code>Board</code></td><td><span class="tag t-board">board</span></td><td>Root + <code>Board.Head</code> <code>Board.Row</code> <code>Board.Cell</code> <code>Board.Empty</code> <code>Board.Skeleton</code>. Hairlines, 34 px rows, tabular numerals.</td></tr>
+          <tr><td><code>StatTile</code></td><td><span class="tag t-pass">pass</span></td><td><code>label, value, hint?, tone?</code>. Value in display face, flips.</td></tr>
+          <tr><td><code>StatusChip</code></td><td>both</td><td><code>tone: Semantic, children</code>. The only way a status is rendered.</td></tr>
+          <tr><td><code>Money</code></td><td>both</td><td><code>display: string</code>. Renders the backend string in mono-ish tabular digits. No numeric prop exists.</td></tr>
+          <tr><td><code>Button</code></td><td>both</td><td><code>variant, destructive, size, loading, disabled</code>.</td></tr>
+          <tr><td><code>Field</code> + <code>Input</code> <code>Select</code> <code>Switch</code> <code>Stepper</code> <code>TimeInput</code></td><td>both</td><td><code>disabled, readOnly, error, hint, label</code>. Stepper for portions (min 0).</td></tr>
+          <tr><td><code>Modal</code> <code>Drawer</code> <code>Popover</code> <code>Menu</code></td><td>overlay</td><td>Shared contract (§07). <code>ConfirmTyped</code> composes Modal with the typed word.</td></tr>
+          <tr><td><code>Toast</code></td><td>feedback</td><td>sonner, skinned: soft bg, on-soft text, base icon.</td></tr>
+          <tr><td><code>Skeleton</code> <code>EmptyState</code> <code>ErrorState</code></td><td>both</td><td><code>ErrorState</code> takes an <code>ApiError</code> and renders its message + retry.</td></tr>
+          <tr><td><code>Pagination</code></td><td><span class="tag t-board">board</span></td><td>"Load more" over <code>useInfiniteQuery</code>; no page numbers (cursor API).</td></tr>
+          <tr><td><code>icons</code></td><td></td><td><code>export { Check, X, … } from 'lucide-react'</code>; the only import path.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Feature widgets</h3>
+      <table>
+        <thead><tr><th style="width:30%">Widget</th><th>Where · notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>OrderRow</code></td><td>Board and Orders. Status chip, order no (mono), customer, lines summary, zone, total (<code>Money</code>), ready-by. Needs-attention rows get a critical left rule and sort first.</td></tr>
+          <tr><td><code>OrderTimeline</code></td><td>Detail. <code>order_events</code> as a vertical list with actor chips (<code>mcp</code>, <code>reconciler</code>, <code>admin</code>).</td></tr>
+          <tr><td><code>StockStrip</code></td><td>Board. Item name + portions, low → caution, zero → critical. Horizontal scroll on phones.</td></tr>
+          <tr><td><code>ItemEditorDrawer</code></td><td>Menu. Name, description, price (naira integer), portions (stepper), available (switch), window (select), sort. Sends <code>If-Match</code>.</td></tr>
+          <tr><td><code>WindowsForm</code></td><td>Settings. Six time inputs with cross-field zod validation mirroring the backend rules.</td></tr>
+          <tr><td><code>ToolCallRow</code></td><td>Activity. Tool, ok/error chip, latency, order link; expands to args/result JSON in mono.</td></tr>
+          <tr><td><code>LiveChip</code></td><td>Topbar. §05.</td></tr>
+          <tr><td><code>ResetButton</code></td><td>Topbar. Hidden unless <code>VITE_DEMO=1</code>. Typed confirm <code>RESET</code>.</td></tr>
+        </tbody>
+      </table>
+      <div class="note info" style="margin-bottom:0">No component is longer than 200 lines. A screen reads like a table of contents: guard → provider → parts. Business logic lives in hooks; formatting lives on the backend.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s9">
+  <div class="sec-head"><span class="num">09</span><h2>Screens and their states</h2><span class="rule"></span></div>
+  <p class="lede">Every screen has loading, error, empty and populated states, and each is listed so QA can walk it. Copy is exact.</p>
+
+  <div class="card">
+    <h3>Board <code>/</code></h3>
+    <div class="app">
+      <div class="rail">
+        <div class="brand"><div class="mark">IB</div><div><div class="nm">Iya Bisi's Kitchen</div><div class="sub">Orders</div></div></div>
+        <div class="grp">Today</div>
+        <div class="it on">Board</div><div class="it">Orders</div>
+        <div class="grp">Setup</div>
+        <div class="it">Menu</div><div class="it">Settings</div>
+        <div class="grp">System</div>
+        <div class="it">Activity</div>
+      </div>
+      <div class="main">
+        <div class="topbar"><span class="chip ok">Lunch · orders close 14:30</span><span class="chip ok">● Live</span><span style="margin-left:auto" class="chip grey">Reset demo</span><span class="chip grey">IB ▾</span></div>
+        <div class="tiles">
+          <div class="tile"><div class="k">Paid today</div><div class="v">5</div></div>
+          <div class="tile"><div class="k">Taken</div><div class="v">₦41,900</div></div>
+          <div class="tile"><div class="k">Awaiting pay</div><div class="v">1</div></div>
+          <div class="tile"><div class="k">Needs you</div><div class="v" style="color:#d64545">0</div></div>
+        </div>
+        <div class="board">
+          <div class="brow h"><span>Status</span><span>Order</span><span>Customer · lines</span><span>Total</span><span>Ready</span></div>
+          <div class="brow"><span class="chip ok">Paid</span><span class="m">IBK-0231</span><span>Tobi · 2× Jollof, 1× Chapman · Surulere</span><span class="m">₦8,700</span><span class="m">13:25</span></div>
+          <div class="brow"><span class="chip wait">Awaiting</span><span class="m">IBK-0230</span><span>Ngozi · 1× Ofada · pickup</span><span class="m">₦4,000</span><span class="m">·</span></div>
+          <div class="brow"><span class="chip ok">Paid</span><span class="m">IBK-0229</span><span>Kunle · 3× Beans &amp; plantain · Yaba</span><span class="m">₦8,700</span><span class="m">13:05</span></div>
+        </div>
+        <div style="font-size:10.5px;color:var(--ink-3);margin-top:8px">Stock · Jollof <b>16</b> · Fried rice <b>15</b> · Ofada <b style="color:#d64545">1</b> · Beans <b>9</b> · Moi moi <b>30</b> · Chapman <b>24</b></div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th style="width:18%">Part</th><th style="width:16%">Data</th><th>States</th></tr></thead>
+      <tbody>
+        <tr><td><b>StatStrip</b> <span class="tag t-pass">pass</span></td><td><code>useStatsToday</code></td><td>Loading: 4 tile skeletons. Error: one <code>ErrorState</code> spanning the strip, "Couldn't load today's numbers" + Retry. Populated: four tiles; "Needs you" turns critical when &gt; 0.</td></tr>
+        <tr><td><b>OrdersToday</b> <span class="tag t-board">board</span></td><td><code>useOrders({today:true})</code></td><td>Loading: 5 row skeletons. Empty: "No orders yet today. They'll appear here the moment a customer pays." Populated: rows sorted needs-attention first, then newest. Row click → detail. New row enters with a 280 ms slide.</td></tr>
+        <tr><td><b>StockStrip</b></td><td>from stats</td><td>Low ≤ threshold → caution chip; 0 → critical "Sold out". Click → <code>/menu?edit=id</code>.</td></tr>
+        <tr><td><b>RecentActivity</b> <span class="tag t-board">board</span></td><td><code>useActivity({limit:6})</code></td><td>Last 6 tool calls, compact rows, "See all" link.</td></tr>
+        <tr><td><b>Window banner</b></td><td><code>useVendor</code></td><td>"Lunch · orders close 14:30" (success) · "Closed · evening opens 17:00" (neutral) · "Orders closed · kitchen open till 15:00" (caution).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <h3>Orders <code>/orders</code> <span class="tag t-board">board</span></h3>
+      <ul class="clean">
+        <li>Filter chips: All · Paid · Awaiting · Needs you · Cancelled/expired. Bound to <code>?status=</code>.</li>
+        <li>Infinite list, "Load more" at the end, cursor from <code>meta.next_cursor</code>, stops when <code>has_more</code> is false.</li>
+        <li>Loading: 8 skeleton rows. Empty per filter: "No orders need you right now." / "No orders match." Error: <code>ErrorState</code> + Retry.</li>
+        <li>Phone: columns collapse to two lines per row (status + order no + total; customer + lines).</li>
+      </ul>
+      <h3 style="margin-top:14px">Order detail <code>/orders/$orderNo</code></h3>
+      <ul class="clean">
+        <li>Header <span class="tag t-pass">pass</span>: order no (mono, readOnly copy button), status chip, total as the big figure, ready-by, customer, fulfilment and address, phone (full, this is the vendor's own record).</li>
+        <li>Lines <span class="tag t-board">board</span>: name, qty, unit, line; subtotal, delivery, total.</li>
+        <li>Payment <span class="tag t-board">board</span>: reference, every <code>payment_checks</code> row (source, status, outcome, amount, gateway response, latency).</li>
+        <li>Timeline: <code>order_events</code> with actor chips.</li>
+        <li>Actions: <b>Resolve</b> (only when needs attention) opens a modal with a required note. <b>Cancel</b> (only when awaiting payment) opens <code>ConfirmTyped</code> with <code>CANCEL</code>. Both disabled with a tooltip otherwise; the rule text comes from the backend's 409 message if it ever fires.</li>
+        <li>Not found: "No order IBK-9999. Check the number on the board." + back link. Invalid format never calls the API.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Menu <code>/menu</code> <span class="tag t-board">board</span></h3>
+      <ul class="clean">
+        <li>Table: name, window, price, portions (inline stepper, optimistic with <code>If-Match</code>), available (inline switch, optimistic), offered-now chip, edit.</li>
+        <li>"Add item" opens <code>ItemEditorDrawer</code> in create mode; id is derived from name (slug) and editable until saved.</li>
+        <li>Edit drawer: all fields; price as naira integer with "₦" prefix; save sends <code>PATCH</code> with <code>If-Match</code>. 409 → "Changed elsewhere, reloaded" and the form refills from the server copy.</li>
+        <li>Empty: "No items yet. Add your first dish." Error: <code>ErrorState</code>.</li>
+        <li>Low stock rows get a caution chip; zero gets critical "Sold out".</li>
+      </ul>
+      <h3 style="margin-top:14px">Settings <code>/settings</code> <span class="tag t-pass">pass</span></h3>
+      <ul class="clean">
+        <li>Three cards: Kitchen (name, pickup address, rider phone, prep minutes, pending TTL, low-stock threshold), Windows (six time inputs with live validation: "orders close must be before kitchen closes"), Delivery zones (small board: name, fee in naira, active switch; add zone inline).</li>
+        <li>One Save per card; <code>PUT</code> with <code>If-Match</code>; success toast "Saved"; 409 handled as in Menu.</li>
+        <li>A readOnly "Now" line shows the computed window from the server so the vendor sees the effect of her times.</li>
+      </ul>
+      <h3 style="margin-top:14px">Activity <code>/activity</code> <span class="tag t-board">board</span></h3>
+      <ul class="clean">
+        <li>Filters: tool (select), outcome (ok / error). Infinite list.</li>
+        <li>Row: time (mono), tool, chip ok/error with code, latency, order link. Expand → two mono panes, args and result, JSON pretty-printed; a Copy button.</li>
+        <li>This is the screen the recording lingers on when the tools fire.</li>
+      </ul>
+      <h3 style="margin-top:14px">Login <code>/login</code> <span class="tag t-pass">pass</span></h3>
+      <ul class="clean">
+        <li>Centered card, brand mark, email + password, Sign in. Errors inline from the envelope message. 429 shows the countdown and disables the button.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s10">
+  <div class="sec-head"><span class="num">10</span><h2>Errors and feedback</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3><code>ApiError</code></h3>
+      <pre class="code">// shared/api/errors.ts
+export const ErrorCode = z.enum(['validation','malformed_json','unauthenticated','invalid_credentials','token_revoked',
+  'not_found','conflict','invalid_state_transition','version_conflict','business_rule','idempotency_mismatch',
+  'rate_limited','upstream_unavailable','internal','network','timeout','contract_drift']);
+
+export class ApiError extends Error {
+  code: ErrorCode; status: number; message: string;           // message = envelope message, verbatim
+  fieldErrors: { field: string; message: string }[]; retryAfter?: number; requestId?: string; current?: unknown;
+  static from(res: Response, body: unknown): ApiError           // unknown envelope → 'internal' with a generic message
+  get retryable() { return ['network','timeout','upstream_unavailable','internal'].includes(this.code) || this.status >= 500 }
+}</pre>
+      <ul class="clean">
+        <li>Branch on <code>code</code>. Display <code>message</code>. Never branch on the message; never show a raw code to the vendor.</li>
+        <li><code>fieldErrors</code> map onto form fields by name; the backend returns all of them at once and the form shows all of them at once.</li>
+        <li><code>version_conflict</code> carries <code>current</code> (the server object) so forms can refill without a second request.</li>
+        <li>A zod parse failure at the seam becomes <code>contract_drift</code>, logged to console with the path, shown as "Something changed on the server. Reload." This is a bug class we want loud.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Where errors show</h3>
+      <table>
+        <thead><tr><th style="width:30%">Situation</th><th>Surface</th></tr></thead>
+        <tbody>
+          <tr><td>Query fails on first load</td><td><code>ErrorState</code> in place of the part, with Retry</td></tr>
+          <tr><td>Query fails on background refetch</td><td>Keep showing data; small caution toast "Couldn't refresh, showing last known"; LiveChip unaffected</td></tr>
+          <tr><td>Mutation fails</td><td>Critical toast with the envelope message; form stays open with field errors</td></tr>
+          <tr><td>401</td><td>Redirect to login with <code>next</code>; one neutral toast "Please sign in again"</td></tr>
+          <tr><td>429</td><td>Inline countdown using <code>retryAfter</code></td></tr>
+          <tr><td>Route-level crash</td><td><code>errorComponent</code> with a plain message and a "Back to board" link; never a blank page</td></tr>
+          <tr><td>Chunk load failure after a deploy</td><td>Global handler reloads once</td></tr>
+        </tbody>
+      </table>
+      <h4>Toast rules</h4>
+      <ul class="clean">
+        <li>Success toasts are short and only for mutations ("Saved", "Order resolved", "Demo reset").</li>
+        <li>No toast for things the UI already shows (a new order arriving animates in; it does not also toast).</li>
+        <li>Tone comes from the semantic enum; the toast has no palette of its own.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s11">
+  <div class="sec-head"><span class="num">11</span><h2>Seam contract with the backend</h2><span class="rule"></span></div>
+  <div class="card">
+    <p>Wire types in <code>shared/api/types.ts</code> are zod schemas inferred to TS types, written by reading the Go JSON tags, never from memory. Casing is <b>snake_case on the wire</b> and stays snake_case in the schemas; the UI does not rename fields.</p>
+    <pre class="code">export const Order = z.object({
+  order_no: z.string(), status: OrderStatus, customer_name: z.string(), phone_masked: z.string().nullable(),
+  fulfilment: z.enum(['delivery','pickup']), zone: z.object({ id: z.string(), name: z.string() }).nullable(),
+  address: z.string().nullable(), window: z.enum(['lunch','evening']), lines_summary: z.string(),
+  total_kobo: z.number().int(), total_display: z.string(),
+  reference: z.string().nullable(), paid_at: z.string().datetime().nullable(),
+  ready_by: z.string().datetime().nullable(), ready_by_wat: z.string().nullable(),
+  confirmed_by: z.enum(['mcp','reconciler']).nullable(), attention_reason: z.string().nullable(),
+  created_at: z.string().datetime(),
+}).passthrough();                                   // unknown fields tolerated (additive API changes)
+
+export const Page = &lt;T extends z.ZodTypeAny&gt;(item: T) => z.object({
+  data: z.array(item), meta: z.object({ next_cursor: z.string().nullable(), has_more: z.boolean() }) });</pre>
+    <ul class="check" style="list-style:none;padding:0">
+      <li>✔ Field names match the Go serialiser; a drift fails loudly as <code>contract_drift</code>.</li>
+      <li>✔ Money: integer kobo + display string; the UI renders the string. No <code>/ 100</code> anywhere (lint rule greps for it).</li>
+      <li>✔ Dates: ISO strings; relative time ("2 min ago") is the only client-side formatting, and only for <code>created_at</code> in activity rows.</li>
+      <li>✔ Nullable fields are <code>.nullable()</code>, not optional; empty arrays are <code>[]</code>.</li>
+      <li>✔ Pagination names are exactly <code>meta.next_cursor</code> and <code>meta.has_more</code>.</li>
+      <li>✔ The error envelope's <code>code</code> enum in <code>errors.ts</code> is the backend's list, copied, with the three client-only codes added.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s12">
+  <div class="sec-head"><span class="num">12</span><h2>Performance and accessibility</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Budgets</h3>
+      <table>
+        <tbody>
+          <tr><td><b>JS, gzipped, initial</b></td><td>≤ 180 KB (React 19 + Router + Query + Tailwind runtime-free ≈ 120 KB; the rest is ours)</td></tr>
+          <tr><td><b>Route chunks</b></td><td>Each screen lazy; ≤ 40 KB each</td></tr>
+          <tr><td><b>LCP on a mid-range Android over 3G</b></td><td>≤ 2.5 s (fonts swap; the board skeleton is the LCP candidate, painted before data)</td></tr>
+          <tr><td><b>INP</b></td><td>≤ 200 ms; lists virtualise above 200 rows (not expected today)</td></tr>
+          <tr><td><b>Re-renders</b></td><td>SSE invalidation only touches queries whose keys match; <code>select</code> used on stats to subscribe to slices</td></tr>
+        </tbody>
+      </table>
+      <ul class="clean">
+        <li>Fonts: three families, two or three weights each, preconnect + <code>display=swap</code>. Baloo 2 only loads 700/800.</li>
+        <li>Icons tree-shaken through the proxy.</li>
+        <li>No images in the app besides the SVG mark.</li>
+        <li><code>manifest.webmanifest</code> + theme colour so the kitchen phone can pin it full-screen.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Accessibility</h3>
+      <ul class="clean">
+        <li>Contrast: every on-soft colour passes 4.5:1 on its soft; ink on paper 13:1; leaf on white 4.6:1 for text 14 px bold or larger (buttons), never for body text.</li>
+        <li>Status is never colour alone: chips carry text; low stock says "Low"; needs-attention rows carry an icon and text.</li>
+        <li>Keyboard: every row is a link; drawers and modals trap focus and return it; <code>Escape</code> closes; typed-confirm inputs autofocus.</li>
+        <li>Live regions: the LiveChip state changes and "new order" arrivals announce politely (<code>aria-live="polite"</code>), toasts are <code>role="status"</code>.</li>
+        <li>Touch targets ≥ 44 px on PASS controls; board rows ≥ 40 px on phones.</li>
+        <li><code>prefers-reduced-motion</code> disables the slide-in and the pulse; figures already do not animate.</li>
+        <li>Form fields have visible labels, errors tied by <code>aria-describedby</code>, and all errors shown at once.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s12b">
+  <div class="sec-head"><span class="num">12b</span><h2>Responsive layout and motion</h2><span class="rule"></span></div>
+  <p class="lede">The vendor's phone is the primary device; the laptop is for the recording. Every screen is designed phone-first and widened, not the other way round. Motion is deliberate and inventoried: each animation below has a reason, a duration token and a reduced-motion fallback.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Breakpoints and what changes</h3>
+      <table>
+        <thead><tr><th style="width:22%">Width</th><th>Layout</th></tr></thead>
+        <tbody>
+          <tr><td><b>&lt; 640</b> phone</td><td>Single column, 16 px gutters. Rail becomes a 5-tab bottom bar (Board, Orders, Menu, Settings, Activity) with safe-area padding. Topbar collapses to vendor name + LiveChip; window chip moves under it. Stat tiles 2×2. Board rows become two-line cards (status + order no + total / customer + lines). Tables scroll horizontally inside their card, never the page. Drawers become full-height bottom sheets. Modals are full-width with 16 px margins.</td></tr>
+          <tr><td><b>640–1023</b> tablet</td><td>Rail hidden, bottom bar stays. Stat tiles 4-up. Board rows single-line. Drawers from the right at 420 px.</td></tr>
+          <tr><td><b>≥ 1024</b> laptop</td><td>220 px rail, topbar with everything. Content max-width 1180 px, centred. Order detail becomes two columns (pass header + lines left, payment + timeline right).</td></tr>
+        </tbody>
+      </table>
+      <ul class="clean">
+        <li>Built with Tailwind's <code>sm: md: lg:</code> prefixes over container queries where a part should size to its card (<code>@container</code> on <code>Board</code> and <code>Pass</code>).</li>
+        <li>No fixed pixel widths on content; <code>min-width: 0</code> on every grid child; <code>overflow-x: auto</code> on <code>Board</code> only.</li>
+        <li><code>100dvh</code> for the shell so iOS Safari's toolbar does not cover the tab bar; <code>env(safe-area-inset-bottom)</code> on the bar.</li>
+        <li>Tested at 360, 390, 430, 768, 1024, 1440. Playwright has a 390 px project (§14).</li>
+        <li>Typography scales one step down on phones: display 28 px, title 20 px; body stays 14 px.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Motion inventory</h3>
+      <table>
+        <thead><tr><th style="width:30%">Moment</th><th style="width:40%">Animation</th><th>Token</th></tr></thead>
+        <tbody>
+          <tr><td>Route change</td><td>Outgoing fades 0→1 opacity down, incoming rises 8 px and fades in; via the View Transitions API with a CSS fallback</td><td><code>--d-base</code>, <code>--e-standard</code></td></tr>
+          <tr><td>Page load</td><td>Parts fade + rise, staggered 35 ms (stat strip, orders, stock, activity)</td><td><code>--d-base</code></td></tr>
+          <tr><td>New order row</td><td>Enters at height 0 → auto with a leaf-50 highlight that fades over 1.2 s; existing rows shift with layout animation</td><td><code>--d-base</code> + 1200 ms fade</td></tr>
+          <tr><td>Row status change</td><td>Chip crossfades (old out 100 ms, new in 180 ms); the row's left rule colour transitions</td><td><code>--d-fast</code></td></tr>
+          <tr><td>Stat tile value</td><td><b>Flips</b> in one frame; the tile gets a 180 ms ring pulse so the eye lands on it</td><td><code>--d-fast</code></td></tr>
+          <tr><td>Stock count</td><td>Flips; if it crosses the low threshold the chip changes tone with a 180 ms crossfade</td><td><code>--d-fast</code></td></tr>
+          <tr><td>LiveChip</td><td>Green dot breathes (2 s loop, opacity .6→1); amber is static; connecting pulses faster</td><td>CSS keyframes</td></tr>
+          <tr><td>Skeletons</td><td>Shimmer sweep, 1.4 s loop, matching the real layout</td><td>CSS keyframes</td></tr>
+          <tr><td>Drawer / bottom sheet</td><td>Scrim 0→.5 in 200 ms; panel slides from edge with <code>--e-standard</code> in 280 ms, trailing the scrim by 40 ms; drag-to-dismiss on phones</td><td><code>--d-base</code></td></tr>
+          <tr><td>Modal</td><td>Scrim as above; content scale .96→1 + fade, 280 ms</td><td><code>--d-base</code></td></tr>
+          <tr><td>Buttons</td><td>Press: scale .98 in 100 ms; loading: label swaps to spinner with a 100 ms crossfade, width held</td><td><code>--d-instant</code></td></tr>
+          <tr><td>Switch / stepper</td><td>Thumb slides 180 ms; stepper digit flips (no count)</td><td><code>--d-fast</code></td></tr>
+          <tr><td>Toast</td><td>Slides up 12 px + fades in 180 ms; out 100 ms</td><td><code>--d-fast</code></td></tr>
+          <tr><td>Optimistic rollback</td><td>Value snaps back and the field shakes 4 px once (240 ms) with the caution toast</td><td><code>--d-fast</code></td></tr>
+          <tr><td>Tab bar</td><td>Active indicator slides between tabs, 180 ms</td><td><code>--d-fast</code></td></tr>
+        </tbody>
+      </table>
+      <ul class="clean">
+        <li>Library: <code>motion</code> (Framer Motion's successor) for layout animations, presence and the drawer gesture; CSS for everything that is a loop or a transition. Added to the dependency list.</li>
+        <li><b>Figures never tween.</b> Money, counts and times change in one frame. The surrounding surface may animate to draw the eye; the number itself does not.</li>
+        <li><code>prefers-reduced-motion: reduce</code> turns every entrance into a 100 ms opacity fade, stops loops (dot, shimmer become static), and disables the shake and the pulse.</li>
+        <li>Nothing animates on scroll; nothing animates longer than 450 ms except the 1.2 s highlight fade and the 2 s breathing loop.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s13">
+  <div class="sec-head"><span class="num">13</span><h2>Build, environment and deploy</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Environment</h3>
+      <table>
+        <thead><tr><th style="width:36%">Variable</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>VITE_API_BASE_URL</code></td><td><code>https://&lt;railway&gt;</code> in production; <code>http://localhost:8080</code> locally. Validated at boot.</td></tr>
+          <tr><td><code>VITE_DEMO</code></td><td><code>1</code> shows the Reset button</td></tr>
+          <tr><td><code>VITE_APP_VERSION</code></td><td>Set by Netlify from <code>$COMMIT_REF</code>; shown in the account menu</td></tr>
+        </tbody>
+      </table>
+      <p>No secrets exist in the frontend. Anything prefixed <code>VITE_</code> ships to the browser by design.</p>
+      <h4><code>frontend/netlify.toml</code></h4>
+      <pre class="code">[build]
+  base    = "frontend"
+  command = "pnpm install --frozen-lockfile && pnpm build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "9"
+
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://*.up.railway.app; font-src https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; frame-ancestors 'none'"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"</pre>
+      <p>Netlify site settings: <b>base directory <code>frontend</code></b>, build command and publish from the file, "Deploy only when files in base directory change" on. Deploy previews on every PR.</p>
+    </div>
+    <div class="card">
+      <h3>Scripts and CI</h3>
+      <pre class="code">"scripts": {
+  "dev":        "vite",
+  "build":      "tsc -b && vite build",
+  "preview":    "vite preview",
+  "typecheck":  "tsc -b --noEmit",
+  "lint":       "eslint .",
+  "test":       "vitest run",
+  "test:e2e":   "playwright test",
+  "check":      "pnpm typecheck && pnpm lint && pnpm test"
+}</pre>
+      <ul class="clean">
+        <li>CI (GitHub Actions, workflow file lives at <code>.github/workflows/frontend.yml</code>, path-filtered to <code>frontend/**</code>): <code>pnpm check</code> then <code>pnpm build</code>; e2e runs against <code>vite preview</code> with msw.</li>
+        <li>Backend CI is a sibling workflow filtered to <code>backend/**</code>. The two never run each other's steps.</li>
+        <li><code>.npmrc</code>: <code>minimum-release-age=10080</code>, <code>engine-strict=true</code>.</li>
+      </ul>
+      <h4>Local</h4>
+      <pre class="code">cd frontend
+cp .env.example .env            # VITE_API_BASE_URL=http://localhost:8080  VITE_DEMO=1
+pnpm install
+pnpm dev                        # http://localhost:5173, backend must be running (make dev in backend/)</pre>
+      <h4>Vite config essentials</h4>
+      <pre class="code">plugins: [TanStackRouterVite({ routesDirectory: 'src/routes' }), react(), tailwindcss()]
+build: { target: 'es2022', sourcemap: true, rollupOptions: { output: { manualChunks: { vendor: ['react','react-dom'], tanstack: ['@tanstack/react-router','@tanstack/react-query'] } } } }
+server: { port: 5173 }</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── -->
+<section id="s14">
+  <div class="sec-head"><span class="num">14</span><h2>Tests</h2><span class="rule"></span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Unit and component (vitest + testing-library + msw)</h3>
+      <ul class="clean">
+        <li><code>ApiError.from</code>: every envelope shape → right code; unknown body → <code>internal</code>; 429 parses <code>Retry-After</code>.</li>
+        <li>Schemas: fixtures copied from the backend spec parse; a renamed field fails as <code>contract_drift</code>.</li>
+        <li><code>use-event-stream</code>: fake stream delivering frames → right invalidations; heartbeat timeout → reconnect; <code>degraded</code> flips state; backoff sequence.</li>
+        <li><code>StatusChip</code> maps every status to the right tone and text.</li>
+        <li><code>Money</code> renders the string verbatim and has no numeric prop (type test).</li>
+        <li><code>WindowsForm</code> cross-field validation matches the backend rules table.</li>
+        <li><code>ConfirmTyped</code> keeps the button disabled until the exact word.</li>
+        <li>Board screen with msw: loading → populated; stats error → <code>ErrorState</code> while orders still render; empty orders copy exact.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>End to end (Playwright, against preview + msw, and one smoke against staging)</h3>
+      <ul class="clean">
+        <li>Login wrong password → inline message; right password → board.</li>
+        <li>Board receives an <code>order.updated</code> event → row flips to Paid and the stat tile changes without a reload.</li>
+        <li>Menu: toggle available optimistically; server 409 → rollback + "Changed elsewhere" toast.</li>
+        <li>Order detail: Resolve requires a note; Cancel requires typing CANCEL.</li>
+        <li>Phone viewport (390 px): no horizontal page scroll on any screen; bottom tab bar present; rows tappable.</li>
+        <li>Staging smoke (manual before recording): log in to the Netlify site against the Railway backend, open the board, confirm LiveChip reads "Live".</li>
+      </ul>
+      <div class="note info" style="margin-bottom:0">Definition of done for a screen: all four states rendered in a test, the seam checklist in §11 ticked against the real response, and the screen walked once on a phone.</div>
+    </div>
+  </div>
+</section>
+
+<div class="foot">
+  <span>Chat to paid order · admin panel technical design · v1</span>
+  <span>docs/tech-spec-web.html · companion: tech-spec-backend.html · plan.html</span>
+</div>
+</div>
+</body>
+</html>
