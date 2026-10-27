@@ -27,10 +27,11 @@
 2. [What the agent does](#2-what-the-agent-does)
 3. [How it is built](#3-how-it-is-built)
 4. [Testing and results](#4-testing-and-results)
-5. [Go-live note for the business owner](#6-go-live-note-for-the-business-owner)
-6. [Links](#7-links)
-7. [Run it yourself](#8-run-it-yourself)
-8. [Repository layout](#9-repository-layout)
+5. [Deployment field notes](#5-deployment-field-notes)
+6. [Go-live note for the business owner](#6-go-live-note-for-the-business-owner)
+7. [Links](#7-links)
+8. [Run it yourself](#8-run-it-yourself)
+9. [Repository layout](#9-repository-layout)
 
 ---
 
@@ -152,7 +153,114 @@ Tested at every layer before the next was built on it, then again on the hosts, 
 Tool latency on the live service for TPK-0231: `get_menu` 4 to 13 ms, `create_order` 1,329 ms (one Paystack initialize) then 5 ms for the idempotent repeat, `verify_payment` 336 ms, `confirm_order` 11 ms.
 
 ---
-## 5. Go-live note for the business owner
+
+## 5. Deployment field notes
+
+Ten problems hit while building and deploying, in the order they happened. Each: what happened, how the cause was found, the fix, and what Chord, Paystack or Railway could change.
+
+### 5.1 Chord's model guessed the tool argument names, and the customer saw the retries
+
+**What happened.** First real order. The teammate called `create_order` three times and every call failed schema validation: `missing properties: ["customer_name" "items" "fulfilment"]`, then `unexpected additional properties ["id"]`, then `["quantity"]`. It gave up and sent its own narration to the customer: *"Trying the quantity field under a different name."*
+
+**How I found the cause.** The `steps` array on `POST /v1/external-chat/messages` lists every tool call with its result text, so all three attempts were visible in one response. The MCP Go SDK infers a schema with `additionalProperties: false`, so `id` for `item_id` and `quantity` for `qty` were hard rejections, with validator text as the error.
+
+**Fix.** The server publishes an explicit, lenient schema (an example in the description, no `additionalProperties: false`, no hard `required` list) and the handler normalises aliases (`id`/`item`/`name` → `item_id`, `quantity`/`count` → `qty`, `customer`/`name` → `customer_name`, `fulfillment` → `fulfilment`, a bare order number where a reference is expected). Validation errors became full sentences with a `next_step`. The skill gained: never narrate tool attempts to the customer. The next conversation succeeded on the second call and the customer saw a clean reply.
+
+**What I'd change in Chord.** Surface the tool's `inputSchema` example to the model more prominently, or let a server mark a tool lenient so near-miss arguments pass through. And treat a reply containing tool-retry narration as a failed turn rather than delivering it.
+
+### 5.2 Paystack passes its fee to the customer, so the verified amount is not the order total
+
+**What happened.** The order total was ₦8,700. Checkout showed **NGN 8,934.02**. `verify_payment` returned `amount_mismatch`, the guard refused to confirm, and the customer was told the vendor would be in touch.
+
+**How I found the cause.** The checkout page itself showed the larger figure. Paystack's verify response carries `amount` (what was charged, fee included when the merchant passes it to the customer), `requested_amount` (what we asked for) and `fees`. The code compared `amount`.
+
+**Fix.** Compare the order total against `requested_amount`, falling back to `amount`, and record both plus `fees` on the payment check. A unit test pins the fee-bearer case. The same order confirmed on the next "paid". (TPK-0231 today: ₦8,500 requested, NGN 8,730.97 charged, confirmed.)
+
+**What I'd change.** Paystack: put `requested_amount` next to `amount` in the verify docs with one sentence on fee bearer. Chord: the built-in Paystack connector should say which figure it checks.
+
+### 5.3 Paystack rejects a `.example` payer email
+
+**What happened.** Live `create_order` failed with `paystack_rejected: "email" must be a valid email.` The server sent `orders+ibk-0231@iyabisi.example` because WhatsApp customers give no email and `.example` is the reserved documentation TLD.
+
+**How I found the cause.** The tool returned Paystack's message verbatim and the Railway log had the same text. Local runs use a fake Paystack, so the first real initialize was on the deployed service.
+
+**Fix.** A configurable `ORDER_EMAIL_DOMAIN` with a valid default; the per-order address stays synthetic and nothing is emailed.
+
+**What I'd change.** Paystack: accept RFC 2606 reserved domains in test mode, or say in the docs that the TLD is validated. For me: one real initialize before trusting the fake.
+
+### 5.4 The Skills API refuses a new skill until the teammate is "migrated"
+
+**What happened.** `POST /v1/teammates/{id}/skills` on a teammate created seconds earlier returned `400 FAILED_PRECONDITION: Initialize skills from existing instructions before modifying them`.
+
+**How I found the cause.** The skills guide mentions `skills/migrate` for legacy teammates; a brand-new teammate created with a `persona` is also "legacy" in this sense. Migrate turned the persona into an "Existing instructions" skill and unlocked the endpoint.
+
+**Fix.** Create → migrate → create skill → publish → exclude the placeholder skill. Scripted in `backend/scripts/chord/00-create-teammate.sh`.
+
+**What I'd change in Chord.** Auto-migrate on first skill create, or accept skill files on `POST /v1/teammates`. Also, two skills responses contain raw control characters inside JSON strings, which strict parsers reject, and `GET /skills/{id}` returned 500 all afternoon while the list endpoint worked.
+
+### 5.5 Railway: the GitHub app had no access to the new repo, and `railway up` from a subfolder breaks the root directory
+
+**What happened.** The first deployment built from the repo root and failed (no Dockerfile there). After setting `rootDirectory: backend` through the GraphQL API, `railway up` from inside `backend/` uploaded that folder as the snapshot root, so the builder looked for `backend/backend`. A push to `main` triggered nothing: `railway service source connect` answered `User does not have access to the repo`.
+
+**How I found the cause.** `railway logs --build` per deployment id, and a GraphQL `serviceInstance` query to confirm `rootDirectory` and `source.repo`.
+
+**Fix.** `railway up` from the repository root with the root directory set to `backend`. Auto-deploy on push needs the Railway GitHub app granted on the repo, a browser-only step for the account owner.
+
+**What I'd change.** Railway CLI: a `--root-directory` flag, and a clear message when `up` runs from a subfolder of a service with a root directory.
+
+### 5.6 The demo depended on the time of day
+
+**What happened.** The live smoke failed 13 checks at 16:05 WAT because the headline dish was seeded lunch-only and the lunch window had closed. A reviewer trying the agent in the evening would have been told jollof is not available.
+
+**How I found the cause.** `get_menu` on the live service listed only evening items; the smoke asserted on jollof.
+
+**Fix.** A migration makes the mains all-day; asun stays evening-only so the window rule is still demonstrable. The smoke uses unique customer names per run so it never collides with an older open order.
+
+**What I'd change.** Nothing on Chord's side. For me: seed demo data for the reviewer's clock, not the builder's.
+
+### 5.7 The model used the example reference from the skill as if it were real
+
+**What happened.** Asked to "check again", the teammate called `verify_payment` with the placeholder reference from the skill's examples and the tool description, not the real one. On `unknown_reference` it told the customer it had never created the order and that the link "didn't come from the kitchen's system", which was false.
+
+**How I found the cause.** The `steps` for that turn show the exact argument. The reply that carried the link had omitted the reference, and tool results are not part of the conversation history on later turns, so the only reference-shaped strings the model could see were the examples.
+
+**Fix.** Every reply that sends a link must carry the order number and reference on their own line. All examples use obvious placeholders (`TPK-0000-xxxx`) and say so. Hard rules: a reference only comes from `create_order` in this conversation or from the order number the customer reads on the payment page (the tools accept the order number alone); never retract or deny an order unless a tool proves it. `unknown_reference` now says exactly what to ask the customer. On the next turn the teammate verified by order number and confirmed correctly.
+
+**What I'd change in Chord.** Keep tool results, or at least their `next_step` and ids, in the context of later turns, or give tools a small per-conversation memory. Today a builder has to smuggle state through the model's own replies.
+
+### 5.8 The reconciler confirmed the order before the model did
+
+**What happened.** After the fee fix deployed, the next "paid" led to `confirm_order` returning `already_confirmed: true, confirmed_by: reconciler`. The same happened in every simulator run since, including TPK-0231 today. The background reconciler had re-verified the pending order on its one-minute tick and confirmed it first.
+
+**Why it matters.** This is the no-webhook design working: a shared Paystack account cannot point a webhook at this service, so payment truth comes only from verify, and the reconciler covers customers who pay and never say so. The model path and the reconciler path converged on the same row under the row lock, with one stock decrement.
+
+**What I'd change.** Nothing; this is the behaviour I wanted. The go-live note explains the lag of up to about three minutes.
+
+### 5.9 Models send zone names, not zone ids
+
+**What happened.** Switching the demo vendor to TPlus brought zones like `okefia` with the display name "Oke-Fia". The alias test that feeds the decoder what a model actually sends, `"zone":"Oke-Fia"`, failed: lower-casing gave `oke-fia`, which matched no zone id, so a real customer saying "deliver to Oke-Fia" would have been told the zone was unknown.
+
+**How I found the cause.** The decoder test failed on the first run after the rename; items already matched by name, zones did not.
+
+**Fix.** Zones match on letters and digits only, by id or by display name, so "Oke-Fia", "oke fia" and "okefia" are the same zone, and the canonical id is written to the order. A test pins all three spellings.
+
+**What I'd change.** For me: never expose an id to a model that a human would spell differently; accept the human spelling everywhere.
+
+### 5.10 A fresh conversation apologised for a correction it never made
+
+**What happened.** On a brand-new simulator link, the first "paid" reply opened with *"The order does exist in the system … I was wrong to tell you not to rely on it, so please ignore that correction."* Nothing of the kind had been said in that chat. The rest of the reply was right (not confirmed yet, link still open).
+
+**How I found the cause.** The skill's hard rule from 5.7 ("never tell the customer an earlier message was wrong … unless a tool proves it") was being read as an instruction to issue a retraction, and the same customer name had been used in an earlier test conversation where a retraction had actually happened.
+
+**Fix.** Skill revision 7: every conversation starts fresh; never mention, correct or apologise for anything the customer cannot see in this chat. The confirmation and stock-guard turns that followed were clean.
+
+**What I'd change in Chord.** Make it explicit in the teammate docs whether any memory crosses conversations for the same contact, and let a builder turn it off per teammate. Also: once a teammate is in skills mode its `persona` is frozen, and `PUT /v1/teammates/{id}/playbook` says so cleanly (`409 SKILLS_ENABLED: "This teammate uses skill files. Save a skill draft and publish it"`), but `PUT /v1/teammates/{id}` with any non-empty `persona` returns `500 INTERNAL` instead of that 409 (empty or null is a 200 no-op; `display_name`, `first_name`, `role` and `avatar` all apply). The stale persona is inert, since the system prompt comes from the published skill, but the generic update endpoint is missing the guard the playbook endpoint has.
+
+---
+
+---
+
+## 6. Go-live note for the business owner
 
 **What it does.** Customers message your WhatsApp number. The assistant shows today's menu from your admin panel, takes the order, sends a Paystack payment link, and confirms the order only after Paystack says the money arrived. Your portion counts go down by themselves. You watch orders arrive on the board, on your phone or laptop.
 
@@ -173,7 +281,7 @@ Tool latency on the live service for TPK-0231: `get_menu` 4 to 13 ms, `create_or
 
 ---
 
-## 6. Links
+## 7. Links
 
 **Live**
 - WhatsApp simulator chat with the teammate: https://chat.tsglabs.dev/c/161x1iBUglWnrJc3APYog6u-
@@ -203,7 +311,7 @@ Tool latency on the live service for TPK-0231: `get_menu` 4 to 13 ms, `create_or
 
 ---
 
-## 7. Run it yourself
+## 8. Run it yourself
 
 ### Backend
 
@@ -236,7 +344,7 @@ pnpm check                      # typecheck, lint, tests
 
 ---
 
-## 8. Repository layout
+## 9. Repository layout
 
 ```
 README.md                         this document

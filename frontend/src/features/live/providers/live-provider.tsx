@@ -18,6 +18,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const attempt = useRef(0)
   const abort = useRef<AbortController | null>(null)
   const degradedServer = useRef(false)
+  const streaming = useRef(false)
   const [nonce, setNonce] = useState(0)
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         const res = await fetch(BASE + EP.EVENTS, { headers: { Authorization: `Bearer ${tokenStore.token}`, Accept: 'text/event-stream' }, signal: ctrl.signal })
         if (!res.ok || !res.body) throw new Error(`sse ${res.status}`)
         attempt.current = 0
+        streaming.current = true
         void qc.invalidateQueries()
         resetWatchdog()
         const reader = res.body.getReader()
@@ -100,9 +102,14 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           }
         }
         // server closed after its 10 minute cap: reconnect immediately
+        streaming.current = false
         if (!cancelled) void connect()
       } catch {
-        if (cancelled) return
+        streaming.current = false
+        // A connect we superseded ourselves (tab switch, manual reconnect)
+        // aborts the old fetch; that is not a failure and must not count
+        // towards "offline".
+        if (cancelled || abort.current !== ctrl) return
         attempt.current += 1
         setState(attempt.current >= 3 ? 'offline' : 'connecting')
         const delay = Math.min(30_000, 1000 * 2 ** attempt.current) * (0.8 + Math.random() * 0.4)
@@ -113,7 +120,9 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     }
 
     void connect()
-    const onVis = () => { if (document.visibilityState === 'visible') { attempt.current = 0; void connect() } }
+    // Coming back to the tab: only reconnect if the stream actually dropped
+    // while it was hidden; a healthy stream is left alone.
+    const onVis = () => { if (document.visibilityState === 'visible' && !streaming.current) { attempt.current = 0; void connect() } }
     document.addEventListener('visibilitychange', onVis)
     return () => {
       cancelled = true
