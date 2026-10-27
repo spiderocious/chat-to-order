@@ -46,6 +46,18 @@ Screenshots in [`qa/screenshots/`](qa/screenshots/).
 - CORS verified by curl: preflight 204 with `access-control-allow-origin: https://chat-to-order-986.netlify.app`; a real POST carries the same header.
 - Sign-in on the live site is left to the owner (password in `.deploy.env`); every screen was verified against the same API locally.
 
-## 7. WhatsApp simulator
+## 7. WhatsApp simulator (chat.tsglabs.dev)
 
-See section 8 below, filled after the simulator run.
+Connected Apps enabled, the simulator app allowed, chat link created for the teammate: https://chat.tsglabs.dev/c/jIMwkWWy_4MoJukWyBnCZ3h1. Conversation as the customer "Ngozi", 17:32 to 17:36 WAT, on skill revision 4:
+
+| Customer | Teammate | Evidence |
+|---|---|---|
+| "Good evening, what do you have tonight?" | Evening menu with prices and portions left, delivery zones, pickup address, 40-minute prep | `05-simulator-menu.jpg` |
+| "1 fried rice and 2 moi moi, delivery to 7 Herbert Macaulay Way, Yaba. I'm Ngozi." | Lines, delivery ₦1,200, total ₦6,300, Paystack link, "Order IBK-0240 · ref IBK-0240-01bd", link expiry | `06-simulator-order-link.jpg` |
+| "paid" (before paying) | "Your payment isn't confirmed yet… the link is still open until 6:03 PM" | `07-simulator-paid-before-paying.jpg` |
+| Paid on checkout (test Success; page showed NGN 6,497.47 with the customer-borne fee) | Landed on the "Payment received" page with the order number | `02-paid-page-live.jpg` |
+| "paid now" | "Your payment is confirmed… Order IBK-0240… ready by about 6:20 PM. The rider will call you." | `08-simulator-confirmed.jpg` |
+
+Admin API for IBK-0240 afterwards: `status: paid`, `confirmed_by: reconciler`, three payment checks (mcp not_confirmed, reconciler success, mcp success), stock reduced. The reconciler confirmed the order between the payment and the customer's next message; the model's `confirm_order` returned `already_confirmed: true`.
+
+One cosmetic finding: the teammate used markdown bold (`**Total**`) in a WhatsApp-style chat. Skill revision 5 adds a plain-text rule.
