@@ -251,7 +251,7 @@ Ten problems hit while building and deploying, in the order they happened. Each:
 
 **Fix.** Skill revision 7: every conversation starts fresh; never mention, correct or apologise for anything the customer cannot see in this chat. The confirmation and stock-guard turns that followed were clean.
 
-**What I'd change in Chord.** Make it explicit in the teammate docs whether any memory crosses conversations for the same contact, and let a builder turn it off per teammate. Also `PUT /v1/teammates/{id}` accepted `display_name` and `first_name` but returned `500 INTERNAL` for `persona`, so the teammate's persona text could not be updated after the vendor switch; the published skill overrides it.
+**What I'd change in Chord.** Make it explicit in the teammate docs whether any memory crosses conversations for the same contact, and let a builder turn it off per teammate. Also: once a teammate is in skills mode its `persona` is frozen, and `PUT /v1/teammates/{id}/playbook` says so cleanly (`409 SKILLS_ENABLED: "This teammate uses skill files. Save a skill draft and publish it"`), but `PUT /v1/teammates/{id}` with any non-empty `persona` returns `500 INTERNAL` instead of that 409 (empty or null is a 200 no-op; `display_name`, `first_name`, `role` and `avatar` all apply). The stale persona is inert, since the system prompt comes from the published skill, but the generic update endpoint is missing the guard the playbook endpoint has.
 
 ---
 

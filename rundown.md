@@ -84,5 +84,5 @@ Chord itself only talks to the deployed `/mcp`, so the local backend is for deve
 ## 6. Known limits
 
 - Railway deploys are pushed from this machine, not from GitHub (see above).
-- Chord's `PUT /v1/teammates/{id}` accepts `display_name` but returns 500 on `persona`; the teammate's persona text still names the old demo vendor. The published skill overrides it, so replies are unaffected.
+- The teammate's `persona` (its original system prompt, set at creation) still names the old demo vendor. Once a teammate is in skills mode the persona is frozen by design: `PUT …/playbook` returns `409 SKILLS_ENABLED`, and the generic `PUT /v1/teammates/{id}` returns `500` for any non-empty `persona` instead of that 409 (a Chord bug, field note 5.10). It is inert: the system prompt is built from the published `food-vendor` skill, and the migrated "Existing instructions" skill that holds the old text is excluded. Only Chord's admin UI shows it.
 - Paystack is in test mode; real cards do not work and no money moves.
