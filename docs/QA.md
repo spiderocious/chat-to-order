@@ -57,6 +57,7 @@ Connected Apps enabled, the simulator app allowed, chat link created for the tea
 | "paid" (before paying) | "Your payment isn't confirmed yet… the link is still open until 6:03 PM" | `07-simulator-paid-before-paying.jpg` |
 | Paid on checkout (test Success; page showed NGN 6,497.47 with the customer-borne fee) | Landed on the "Payment received" page with the order number | `02-paid-page-live.jpg` |
 | "paid now" | "Your payment is confirmed… Order IBK-0240… ready by about 6:20 PM. The rider will call you." | `08-simulator-confirmed.jpg` |
+| "Also add 12 egusi for pickup, same name" | "we only have 10 egusi & pounded yam left tonight, so I can't do 12. I can do up to 10… or a swap" (stock guard, `item_unavailable` with `max_qty`) | `09-simulator-stock-guard.jpg` |
 
 Admin API for IBK-0240 afterwards: `status: paid`, `confirmed_by: reconciler`, three payment checks (mcp not_confirmed, reconciler success, mcp success), stock reduced. The reconciler confirmed the order between the payment and the customer's next message; the model's `confirm_order` returned `already_confirmed: true`.
 

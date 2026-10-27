@@ -19,3 +19,6 @@ smoke: ## end-to-end through MCP and the admin API; BASE overrides the target
 
 skill: ## zip the Chord skill package
 	mkdir -p dist && rm -f dist/food-vendor.zip && (cd skill && zip -qr ../dist/food-vendor.zip food-vendor -x '*.DS_Store') && ls -la dist/food-vendor.zip
+
+reset-live: ## wipe orders on the deployed instance and restore the six demo orders (reads ../.deploy.env)
+	@set -a; source ../.deploy.env; set +a; TOK=$$(curl -s https://backend-production-c54f.up.railway.app/api/v1/auth/login -H 'Content-Type: application/json' -d "{\"email\":\"devferanmi@gmail.com\",\"password\":\"$$ADMIN_PASSWORD\"}" | jq -r .data.token); curl -s -X POST https://backend-production-c54f.up.railway.app/api/v1/admin/reset -H "Authorization: Bearer $$TOK" | jq .
