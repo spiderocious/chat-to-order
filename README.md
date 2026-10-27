@@ -4,6 +4,14 @@ A Chord AI teammate on WhatsApp for a Lagos food vendor. A customer asks what's 
 
 Built for the TSG Labs build exercise, role: Forward-deployed Engineering.
 
+| Live | URL |
+|---|---|
+| Teammate on Chord | "Iya Bisi's Kitchen" (workspace ws-cf60d772…), reachable in the WhatsApp simulator |
+| Admin panel | https://chat-to-order-986.netlify.app |
+| Backend + MCP | https://backend-production-c54f.up.railway.app (`/healthz`, `/mcp`, `/api/v1`) |
+
+Submission pieces: [PROBLEM-STATEMENT.md](PROBLEM-STATEMENT.md) · [FIELD-NOTES.md](FIELD-NOTES.md) · [GO-LIVE.md](GO-LIVE.md) · [docs/QA.md](docs/QA.md) · designs in [docs/](docs/)
+
 | Part | Where | Stack | Deploys to |
 |---|---|---|---|
 | Backend + MCP server | [`backend/`](backend/) | Go, Gin, Postgres, Redis, MCP Go SDK | Railway |
