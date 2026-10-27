@@ -22,7 +22,7 @@ Then it gave up and sent its own narration to the customer: *"Trying the quantit
 
 ## 2. Paystack passes its fee to the customer, so the amount on verify is not the order total
 
-**What happened.** The order total was ₦8,700. Paystack checkout showed **NGN 8,934.02**. After paying, `verify_payment` returned `outcome: amount_mismatch`, the guard refused to confirm, and the customer was told Iya Bisi would be in touch.
+**What happened.** The order total was ₦8,700. Paystack checkout showed **NGN 8,934.02**. After paying, `verify_payment` returned `outcome: amount_mismatch`, the guard refused to confirm, and the customer was told TPlus would be in touch.
 
 **How I found the cause.** The checkout page itself showed the larger figure. Paystack's verify response carries `amount` (what the customer was charged, fee included when the merchant's settings put the fee on the customer), `requested_amount` (what we asked for) and `fees`. My code compared `amount` with the order total.
 
@@ -66,17 +66,17 @@ Then it gave up and sent its own narration to the customer: *"Trying the quantit
 
 **How I found the cause.** `get_menu` on the live service listed only evening items; the smoke test asserted on jollof.
 
-**Fix.** A migration makes jollof and fried rice all-day; ofada stays lunch-only and egusi evening-only so the window rule is still demonstrable. The smoke test also uses unique customer names per run so it never collides with an older open order.
+**Fix.** A migration makes jollof and fried rice all-day; biryani stays lunch-only and asun evening-only so the window rule is still demonstrable. The smoke test also uses unique customer names per run so it never collides with an older open order.
 
 **What I'd change.** Nothing on Chord's side. For me: seed demo data for the reviewer's clock, not the builder's.
 
 ## 7. The model used the example reference from the skill as if it were real
 
-**What happened.** Two turns after the order was created, the customer said "I've paid, can you check again?". The teammate called `verify_payment` with `IBK-0231-a1b2`, which is the placeholder reference in my skill's conversation examples and in the tool description, not the real `IBK-0235-82e2`. The tool answered `unknown_reference`. The model then told the customer it had never created the order and that the payment link "didn't come from the kitchen's system", which was false.
+**What happened.** Two turns after the order was created, the customer said "I've paid, can you check again?". The teammate called `verify_payment` with `TPK-0231-a1b2`, which is the placeholder reference in my skill's conversation examples and in the tool description, not the real `TPK-0235-82e2`. The tool answered `unknown_reference`. The model then told the customer it had never created the order and that the payment link "didn't come from the kitchen's system", which was false.
 
-**How I found the cause.** The `steps` for that turn show the exact argument. Looking back, the reply that carried the payment link never included the reference (the model had dropped it), and tool results are not part of the conversation history on later turns, so the only `IBK-` strings the model could see were the examples.
+**How I found the cause.** The `steps` for that turn show the exact argument. Looking back, the reply that carried the payment link never included the reference (the model had dropped it), and tool results are not part of the conversation history on later turns, so the only `TPK-` strings the model could see were the examples.
 
-**Fix.** Three changes. Every reply that sends a link must carry the order number and reference on their own line, so later turns can find them. All examples now use obvious placeholders (`IBK-0000-xxxx`) and say so. The hard rules gained: a reference only ever comes from `create_order` in this conversation or from the order number the customer reads on the payment page (the tools accept the order number alone); and never retract or claim an order does not exist unless a tool result proves it. `unknown_reference` now tells the model exactly what to ask the customer. On the next turn the customer quoted the order number, and the teammate verified and confirmed it correctly.
+**Fix.** Three changes. Every reply that sends a link must carry the order number and reference on their own line, so later turns can find them. All examples now use obvious placeholders (`TPK-0000-xxxx`) and say so. The hard rules gained: a reference only ever comes from `create_order` in this conversation or from the order number the customer reads on the payment page (the tools accept the order number alone); and never retract or claim an order does not exist unless a tool result proves it. `unknown_reference` now tells the model exactly what to ask the customer. On the next turn the customer quoted the order number, and the teammate verified and confirmed it correctly.
 
 **What I'd change in Chord.** Keep tool results (or at least the tool's `next_step` and ids) in the context of later turns in the same conversation, or expose a small key-value memory per conversation that tools can write to. Today a builder has to smuggle state through the model's own replies.
 

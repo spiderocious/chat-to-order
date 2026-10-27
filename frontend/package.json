@@ -11,9 +11,9 @@
     "lint": "oxlint .",
     "test": "vitest run --passWithNoTests",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
-    "docs": "rm -rf public/docs && mkdir -p public/docs && cp ../docs/*.html public/docs/",
-    "prebuild": "pnpm docs",
-    "predev": "pnpm docs"
+    "prebuild": "pnpm run copy-docs",
+    "predev": "pnpm run copy-docs",
+    "copy-docs": "rm -rf public/docs && mkdir -p public/docs && cp ../docs/*.html public/docs/"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.105.0",

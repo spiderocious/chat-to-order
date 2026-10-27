@@ -25,7 +25,7 @@ h1{font-size:22px;margin:0 0 8px;line-height:1.2}
 p{margin:0 0 10px;color:#3d4c5c;line-height:1.5}
 .ref{font-family:ui-monospace,monospace;background:#f3f1ea;padding:3px 8px;border-radius:6px}
 .big{display:inline-block;background:#e3f4ea;color:#14603f;border:1.5px solid #b4dfc6;border-radius:999px;padding:6px 14px;font-weight:800;margin-top:6px}
-</style></head><body><div class="card"><div class="mark">IB</div>
+</style></head><body><div class="card"><div class="mark">TP</div>
 <h1>{{.Heading}}</h1>
 <p>{{.Body}}</p>
 {{if .OrderNo}}<p>Order <span class="ref">{{.OrderNo}}</span></p>{{end}}

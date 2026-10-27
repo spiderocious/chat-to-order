@@ -1,4 +1,4 @@
-# Go-live note for Iya Bisi
+# Go-live note for TPlus Kitchen
 
 **What it does.** Customers message your WhatsApp number. The assistant shows today's menu from your admin panel, takes the order, sends a Paystack payment link, and confirms the order only after Paystack says the money arrived. Your portion counts go down by themselves. You watch orders arrive on the board at the admin panel, on your phone or laptop.
 

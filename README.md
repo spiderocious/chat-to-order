@@ -1,16 +1,16 @@
 # Chat to paid order
 
-A Chord AI teammate on WhatsApp for a Lagos food vendor. A customer asks what's on the menu, orders, gets a Paystack link, pays, and the order is confirmed with stock reduced. The vendor watches it happen on an admin panel.
+A Chord AI teammate on WhatsApp for a Nigerian food vendor. A customer asks what's on the menu, orders, gets a Paystack link, pays, and the order is confirmed with stock reduced. The vendor watches it happen on an admin panel.
 
 Built for the TSG Labs build exercise, role: Forward-deployed Engineering.
 
 | Live | URL |
 |---|---|
-| Teammate on Chord | "Iya Bisi's Kitchen", simulator chat link https://chat.tsglabs.dev/c/jIMwkWWy_4MoJukWyBnCZ3h1 |
+| Teammate on Chord | "TPlus Kitchen", simulator chat link https://chat.tsglabs.dev/c/161x1iBUglWnrJc3APYog6u- |
 | Admin panel | https://chat-to-order-986.netlify.app |
 | Backend + MCP | https://backend-production-c54f.up.railway.app (`/healthz`, `/mcp`, `/api/v1`) |
 
-Submission pieces: [PROBLEM-STATEMENT.md](PROBLEM-STATEMENT.md) · [FIELD-NOTES.md](FIELD-NOTES.md) · [GO-LIVE.md](GO-LIVE.md) · [docs/QA.md](docs/QA.md) · designs in [docs/](docs/)
+Submission pieces: [PROBLEM-STATEMENT.md](PROBLEM-STATEMENT.md) · [FIELD-NOTES.md](FIELD-NOTES.md) · [GO-LIVE.md](GO-LIVE.md) · [docs-local/QA.md](docs-local/QA.md) · designs in [docs/](docs/)
 
 | Part | Where | Stack | Deploys to |
 |---|---|---|---|
