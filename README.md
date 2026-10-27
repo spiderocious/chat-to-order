@@ -8,7 +8,6 @@
 | **Admin panel** | https://chat-to-order-986.netlify.app · login `devferanmi@gmail.com` / `tplus-demo-2026` |
 | **Backend + MCP server** | https://backend-production-c54f.up.railway.app |
 | **Code** | https://github.com/spiderocious/chat-to-order |
-| **Plan** | [Plan Document](https://chat-to-order-986.netlify.app/docs/plan.html) |
 | **Backend + MCP technical design document** | [backend + MCP document](https://chat-to-order-986.netlify.app/docs/tech-spec-backend.html) |
 | **Web application technical design document** | [web design doc](https://chat-to-order-986.netlify.app/docs/tech-spec-web.html) |
 | **Recording** | 3-minute walkthrough in the Drive folder |
@@ -133,7 +132,7 @@ WhatsApp simulator ──► Chord teammate (skill: food-vendor, rev 9)
 
 No Paystack webhook: the account is shared with other projects, so payment truth comes from calling verify, and the reconciler covers the silent-payer case. The admin login is bootstrapped at boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (keyed on email, rotated when the env value changes, sessions revoked on rotation); there is no endpoint that can mint or reset an admin.
 
-Full designs: [backend + MCP](https://chat-to-order-986.netlify.app/docs/tech-spec-backend.html), [admin panel](https://chat-to-order-986.netlify.app/docs/tech-spec-web.html), and the [build plan](https://chat-to-order-986.netlify.app/docs/plan.html) (sources in [docs/](docs/)).
+Full designs: [backend + MCP](https://chat-to-order-986.netlify.app/docs/tech-spec-backend.html), [admin panel](https://chat-to-order-986.netlify.app/docs/tech-spec-web.html) (sources in [docs/](docs/)).
 
 ---
 
@@ -290,14 +289,13 @@ Ten problems hit while building and deploying, in the order they happened. Each:
 - Backend health: https://backend-production-c54f.up.railway.app/healthz
 - MCP endpoint (bearer-protected): https://backend-production-c54f.up.railway.app/mcp
 
-**Plan and designs (hosted)**
-- Build plan: https://chat-to-order-986.netlify.app/docs/plan.html
+**Technical designs (hosted)**
 - Backend and MCP technical design: https://chat-to-order-986.netlify.app/docs/tech-spec-backend.html
 - Admin panel technical design: https://chat-to-order-986.netlify.app/docs/tech-spec-web.html
 
 **Code and documents**
 - Repository: https://github.com/spiderocious/chat-to-order
-- Design sources: [docs/plan.html](docs/plan.html), [docs/tech-spec-backend.html](docs/tech-spec-backend.html), [docs/tech-spec-web.html](docs/tech-spec-web.html)
+- Design sources: [docs/tech-spec-backend.html](docs/tech-spec-backend.html), [docs/tech-spec-web.html](docs/tech-spec-web.html)
 - Screenshots: [docs/screenshots/](docs/screenshots/)
 - The skill: [backend/skill/food-vendor/](backend/skill/food-vendor/)
 
@@ -353,7 +351,7 @@ backend/                          Go service: cmd/server, internal/{config,money
 backend/skill/food-vendor/        SKILL.md + references/vendor-rules.md + references/conversation-examples.md
 backend/scripts/                  smoke.sh, chord/00-create-teammate.sh, chord/01-register.sh, chord/02-usage.sh, chord/03-chat.sh
 frontend/                         Vite app: src/routes, src/features/{auth,live,board,orders,menu,settings,activity}, src/shared/{api,ui,utils}
-docs/                             plan.html, tech-spec-backend.html, tech-spec-web.html, screenshots/
+docs/                             tech-spec-backend.html, tech-spec-web.html, screenshots/
 ```
 
 ---
@@ -363,7 +361,7 @@ docs/                             plan.html, tech-spec-backend.html, tech-spec-w
 
 Claude Code (Anthropic's agentic coding tool) was the second pair of hands on this build. This section says what it did, what I did, and where it was wrong, because a reviewer should be able to tell which parts are judgement and which are generation.
 
-**Planning.** I wrote the brief and a handoff note (the business, the tool contract I wanted, the stack, the constraints: no Paystack webhook because the account is shared, nothing at the repo root, Redis fail-open, integer kobo). I set the technical and product direction, proposed the skill structure, and reviewed every commit. Claude Code wrote the build plan, the technical designs, the skill and the smoke script.
+**Planning.** I wrote the brief and a handoff note (the business, the tool contract I wanted, the stack, the constraints: no Paystack webhook because the account is shared, nothing at the repo root, Redis fail-open, integer kobo). Claude Code turned those into the two technical designs in `docs/`. I asked for them to be "principal-engineer level" with the exact request and response bodies, the state machine and the failure table; what is published is the third version.
 
 **Code.** Claude Code scaffolded the Go service and the React panel from the tool contracts, including the migrations, the MCP server, the tests and the 52-check smoke script. I read every commit, set the product rules (an order is confirmed only on Paystack's word; the model never sets a price, a status or a count; "pending" is never "failed") and the engineering rules (lenient tool schemas with alias normalisation, every money field twice, row locks on confirm, the reconciler). Where I disagreed I said so and it changed: the admin bootstrap was keyed on a hardcoded id until I asked why, and it was rewritten to key on the email with password rotation that revokes sessions.
 
@@ -371,7 +369,7 @@ Claude Code (Anthropic's agentic coding tool) was the second pair of hands on th
 
 **Testing.** The progressive testing in §4 was run by Claude Code and read by me: unit and integration tests, the smoke locally and against Railway, the API and simulator conversations, the live panel sign-in and every screen at phone width. The ten field notes in §5 were all real failures it hit while doing that; it diagnosed them from the Chord `steps`, Railway logs and Paystack responses, proposed each fix, and I decided which to take. Two of them (5.9 zone names, 5.10 the phantom apology) came out of the final vendor switch and my own recording.
 
-**Writing.** Claude Code drafted this README, the plan and specs, the go-live note and the handover, and found the sourced statistics in §1. I chose the vendor, set the structure, cut what did not matter, and had it fold the separate documents into this one. It also reviewed my recording frame by frame and listed what to re-shoot.
+**Writing.** Claude Code drafted this README, the two technical designs, the go-live note and the handover, and found the sourced statistics in §1. I chose the vendor, set the structure, cut what did not matter, and had it fold the separate documents into this one. It also reviewed my recording frame by frame and listed what to re-shoot.
 
 **What it got wrong.** It used the reserved `.example` domain for the Paystack payer email, compared the charged amount instead of the requested one, wrote tool schemas the model could not satisfy, let the example reference in the skill leak into a real call, and apologised in a fresh conversation for a correction it never made. Each of those is in the field notes with the fix. It also once ran two shell commands in parallel that stepped on each other's working directory and corrupted a `.gitignore` line, which I caught in review.
 
